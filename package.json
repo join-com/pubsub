@@ -1,0 +1,41 @@
+{
+  "name": "@join-com/pubsub",
+  "version": "0.0.1",
+  "description": "Google Cloud PubSub wrapper",
+  "repository": "github:join-com/pubsub",
+  "author": "JOIN AG",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc",
+    "test": "yarn jest --runInBand --forceExit",
+    "test:watch": "yarn test --watch",
+    "lint:fix": "yarn lint --fix",
+    "lint": "tslint -p .",
+    "prepare": "install-peers"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn tsc --noEmit && lint-staged"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^24.0.18",
+    "@types/node": "^12.7.5",
+    "install-peers-cli": "^2.1.1",
+    "jest": "^24.9.0",
+    "jest-watch-typeahead": "^0.4.0",
+    "lint-staged": "^9.2.5",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.0",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-no-focused-test": "^0.5.0",
+    "typescript": "^3.6.3"
+  },
+  "peerDependencies": {
+    "@google-cloud/pubsub": "^0.32.1",
+    "@join-com/gcloud-logger-trace": "^0.1.5",
+    "@join-com/node-trace": "^0.1.5"
+  }
+}

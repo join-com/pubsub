@@ -1,0 +1,9 @@
+node_modules
+yarn-error.log
+npm-debug.log
+.DS_Store
+*.orig
+.vscode/launch.json
+.vscode/settings.json
+dist/**
+.idea

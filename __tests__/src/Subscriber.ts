@@ -1,0 +1,111 @@
+import { Subscriber, ParsedMessage } from '../../src/Subscriber'
+import * as traceMock from '../../__mocks__/@join-com/node-trace'
+import {
+  getClientMock,
+  getTopicMock,
+  getSubscriptionMock,
+  getMessageMock,
+  MessageMock
+} from '../support/pubsubMock'
+
+const topic = 'topic-name'
+const subscription = 'subscription-name'
+const subscriptionMock = getSubscriptionMock()
+const topicMock = getTopicMock({ subscriptionMock })
+const clientMock = getClientMock({ topicMock })
+
+describe('Subscriber', () => {
+  let subscriber: Subscriber
+
+  beforeEach(() => {
+    subscriber = new Subscriber(topic, subscription, clientMock as any)
+  })
+
+  afterEach(() => {
+    clientMock.topic.mockClear()
+    topicMock.subscription.mockClear()
+
+    topicMock.exists.mockReset()
+    topicMock.create.mockReset()
+    subscriptionMock.exists.mockReset()
+    subscriptionMock.create.mockReset()
+    traceMock.getTraceContextName.mockReset()
+  })
+
+  describe('initialize', () => {
+    it('creates topic unless exists', async () => {
+      topicMock.exists.mockResolvedValue([false])
+      subscriptionMock.exists.mockResolvedValue([true])
+
+      await subscriber.initialize()
+
+      expect(topicMock.create).toHaveBeenCalled()
+      expect(clientMock.topic).toHaveBeenCalledWith(topic)
+    })
+
+    it('does not create topic if exists', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+
+      await subscriber.initialize()
+
+      expect(topicMock.create).not.toHaveBeenCalled()
+      expect(clientMock.topic).toHaveBeenCalledWith(topic)
+    })
+
+    it('creates subscription unless exists', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([false])
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).toHaveBeenCalled()
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscription)
+    })
+
+    it('does not create subscription if exists', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscription)
+    })
+  })
+
+  describe('start', () => {
+    const data = { id: 1, createdAt: new Date() }
+
+    let messageMock: MessageMock
+
+    beforeEach(() => {
+      const traceContextName = 'trace-context-name'
+      traceMock.getTraceContextName.mockReturnValue(traceContextName)
+
+      const dataWithContext = { ...data, [traceContextName]: 'trace-context' }
+      messageMock = getMessageMock(dataWithContext)
+    })
+
+    it('receives parsed data', async () => {
+      let parsedMessage: ParsedMessage<unknown>
+      subscriber.start(async msg => {
+        parsedMessage = msg
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+
+      expect(parsedMessage.dataParsed).toEqual(data)
+    })
+
+    it('unacknowledges message if processing fails', async () => {
+      subscriber.start(async () => {
+        throw new Error('Something wrong')
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+
+      expect(messageMock.nack).toHaveBeenCalled()
+    })
+  })
+})

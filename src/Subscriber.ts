@@ -66,7 +66,7 @@ export class Subscriber<T = unknown> {
 
     const attributes = message.attributes as { [key: string]: string }
     const traceContextName = trace.getTraceContextName()
-    const traceId = attributes[traceContextName]
+    const traceId = attributes[traceContextName] || dataParsed[traceContextName]
     trace.start(traceId)
 
     this.logMessage(message, dataParsed)

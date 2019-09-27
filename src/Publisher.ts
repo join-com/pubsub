@@ -5,13 +5,13 @@ import { PubSub, Topic } from '@google-cloud/pubsub'
 export class Publisher<T = unknown> {
   private topic: Topic
 
-  constructor(topicName: string, client: PubSub) {
+  constructor(readonly topicName: string, client: PubSub) {
     this.topic = client.topic(topicName)
   }
 
   public async initialize() {
     try {
-      await this.initializeTopic(this.topic)
+      await this.initializeTopic()
     } catch (e) {
       reportError(e)
       process.exit(1)
@@ -21,10 +21,16 @@ export class Publisher<T = unknown> {
   public async publishMsg(data: T): Promise<void> {
     const traceContext = getTraceContext()
     const traceContextName = getTraceContextName()
-    const messageId = await this.topic.publishJSON({
-      ...data,
+    const attributes = {
       [traceContextName]: traceContext
-    })
+    }
+    const messageId = await this.topic.publishJSON(
+      {
+        ...data,
+        ...attributes // Sent with message to be compatible with legacy subscriber implementation
+      },
+      attributes
+    )
 
     logger.info(`PubSub: Message sent for topic: ${this.topic.name}:`, {
       data,
@@ -32,15 +38,15 @@ export class Publisher<T = unknown> {
     })
   }
 
-  private async initializeTopic(topic: Topic) {
-    const [exist] = await topic.exists()
+  private async initializeTopic() {
+    const [exist] = await this.topic.exists()
     logger.info(
-      `PubSub: Topic ${topic.name} ${exist ? 'exists' : 'does not exist'}`
+      `PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`
     )
 
     if (!exist) {
-      await topic.create()
-      logger.info(`PubSub: Topic ${topic.name} is created`)
+      await this.topic.create()
+      logger.info(`PubSub: Topic ${this.topicName} is created`)
     }
   }
 }

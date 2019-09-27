@@ -39,14 +39,16 @@ export const getClientMock = ({ topicMock }: ClientMockOption = {}) => ({
 
 export interface MessageMock {
   data: Buffer
+  attributes: {}
   ack: jest.Mock<any, any>
   nack: jest.Mock<any, any>
 }
 
-export const getMessageMock = (data: any): MessageMock => {
+export const getMessageMock = (data: any, attributes: {} = {}): MessageMock => {
   const buffer = Buffer.from(JSON.stringify(data), 'utf8')
   return {
     data: buffer,
+    attributes,
     ack: jest.fn(),
     nack: jest.fn()
   }

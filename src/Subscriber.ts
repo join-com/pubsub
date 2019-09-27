@@ -17,8 +17,8 @@ export class Subscriber<T = unknown> {
   private readonly options: Options
 
   constructor(
-    topicName: string,
-    subscriptionName: string,
+    readonly topicName: string,
+    readonly subscriptionName: string,
     client: PubSub,
     options?: Options
   ) {
@@ -29,8 +29,8 @@ export class Subscriber<T = unknown> {
 
   public async initialize() {
     try {
-      await this.initializeTopic(this.topic)
-      await this.initializeSubscription(this.subscription, this.options)
+      await this.initializeTopic()
+      await this.initializeSubscription()
     } catch (e) {
       reportError(e)
       process.exit(1)
@@ -41,7 +41,7 @@ export class Subscriber<T = unknown> {
     this.subscription.on('error', reportError)
     this.subscription.on('message', this.processMsg(asyncCallback))
     logger.info(
-      `PubSub: Subscription ${this.subscription.name} is started for topic ${this.topic.name}`
+      `PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`
     )
   }
 
@@ -55,7 +55,7 @@ export class Subscriber<T = unknown> {
     }
 
     logger.info(
-      `PubSub: Got message on topic: ${this.topic.name} with subscription: ${this.subscription.name} with data:`,
+      `PubSub: Got message on topic: ${this.topicName} with subscription: ${this.subscriptionName} with data:`,
       { filteredMessage, dataParsed }
     )
   }
@@ -63,12 +63,14 @@ export class Subscriber<T = unknown> {
   private parseData(message: Message): T {
     const dataParser = new DataParser()
     const dataParsed = dataParser.parse(message.data)
+
+    const attributes = message.attributes as { [key: string]: string }
     const traceContextName = trace.getTraceContextName()
-    const traceId = dataParsed[traceContextName]
+    const traceId = attributes[traceContextName] || dataParsed[traceContextName]
     trace.start(traceId)
 
     this.logMessage(message, dataParsed)
-    delete dataParsed[traceContextName]
+    delete dataParsed[traceContextName] // Should be removed after no more legacy publishers used
     return dataParsed
   }
 
@@ -85,32 +87,29 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  private async initializeTopic(topic: Topic) {
-    const [exist] = await topic.exists()
+  private async initializeTopic() {
+    const [exist] = await this.topic.exists()
     logger.info(
-      `PubSub: Topic ${topic.name} ${exist ? 'exists' : 'does not exist'}`
+      `PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`
     )
 
     if (!exist) {
-      await topic.create()
-      logger.info(`PubSub: Topic ${topic.name} is created`)
+      await this.topic.create()
+      logger.info(`PubSub: Topic ${this.topicName} is created`)
     }
   }
 
-  private async initializeSubscription(
-    subscription: Subscription,
-    options: Options
-  ) {
-    const [exist] = await subscription.exists()
+  private async initializeSubscription() {
+    const [exist] = await this.subscription.exists()
     logger.info(
-      `PubSub: Subscription ${subscription.name} ${
+      `PubSub: Subscription ${this.subscriptionName} ${
         exist ? 'exists' : 'does not exist'
       }`
     )
 
     if (!exist) {
-      await subscription.create(options)
-      logger.info(`PubSub: Subscription ${subscription.name} is created`)
+      await this.subscription.create(this.options)
+      logger.info(`PubSub: Subscription ${this.subscriptionName} is created`)
     }
   }
 }

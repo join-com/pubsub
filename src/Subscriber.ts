@@ -63,14 +63,12 @@ export class Subscriber<T = unknown> {
   private parseData(message: Message): T {
     const dataParser = new DataParser()
     const dataParsed = dataParser.parse(message.data)
-
-    const attributes = message.attributes as { [key: string]: string }
     const traceContextName = trace.getTraceContextName()
-    const traceId = attributes[traceContextName] || dataParsed[traceContextName]
+    const traceId = dataParsed[traceContextName]
     trace.start(traceId)
 
     this.logMessage(message, dataParsed)
-    delete dataParsed[traceContextName] // Should be removed after no more legacy publishers used
+    delete dataParsed[traceContextName]
     return dataParsed
   }
 

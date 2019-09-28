@@ -21,16 +21,10 @@ export class Publisher<T = unknown> {
   public async publishMsg(data: T): Promise<void> {
     const traceContext = getTraceContext()
     const traceContextName = getTraceContextName()
-    const attributes = {
+    const messageId = await this.topic.publishJSON({
+      ...data,
       [traceContextName]: traceContext
-    }
-    const messageId = await this.topic.publishJSON(
-      {
-        ...data,
-        ...attributes // Sent with message to be compatible with legacy subscriber implementation
-      },
-      attributes
-    )
+    })
 
     logger.info(`PubSub: Message sent for topic: ${this.topic.name}:`, {
       data,

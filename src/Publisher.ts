@@ -45,7 +45,12 @@ export class Publisher<T = unknown> {
 
   private getAttributes() {
     const traceContext = getTraceContext()
+    if (!traceContext) {
+      logger.warn('No trace context defined')
+      return undefined
+    }
+
     const traceContextName = getTraceContextName()
-    return traceContext ? { [traceContextName]: traceContext } : undefined
+    return { [traceContextName]: traceContext }
   }
 }

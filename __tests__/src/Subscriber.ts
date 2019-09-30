@@ -30,6 +30,7 @@ describe('Subscriber', () => {
     subscriptionMock.exists.mockReset()
     subscriptionMock.create.mockReset()
     traceMock.getTraceContextName.mockReset()
+    traceMock.start.mockReset()
   })
 
   describe('initialize', () => {
@@ -83,8 +84,8 @@ describe('Subscriber', () => {
       const traceContextName = 'trace-context-name'
       traceMock.getTraceContextName.mockReturnValue(traceContextName)
 
-      const dataWithContext = { ...data, [traceContextName]: 'trace-context' }
-      messageMock = getMessageMock(dataWithContext)
+      const attributes = { [traceContextName]: 'trace-context' }
+      messageMock = getMessageMock(data, attributes)
     })
 
     it('receives parsed data', async () => {
@@ -96,6 +97,7 @@ describe('Subscriber', () => {
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(parsedMessage.dataParsed).toEqual(data)
+      expect(traceMock.start).toHaveBeenCalledWith('trace-context')
     })
 
     it('unacknowledges message if processing fails', async () => {

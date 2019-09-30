@@ -19,12 +19,11 @@ export class Publisher<T = unknown> {
   }
 
   public async publishMsg(data: T): Promise<void> {
-    const traceContext = getTraceContext()
-    const traceContextName = getTraceContextName()
-    const messageId = await this.topic.publishJSON({
-      ...data,
-      [traceContextName]: traceContext
-    })
+    const attributes = this.getAttributes()
+    const message = !Array.isArray(data)
+      ? Object.assign({}, data, attributes) // For backward compatibility. Attributes assignment should be removed after all pubsub subscribers migrated
+      : data
+    const messageId = await this.topic.publishJSON(message, attributes)
 
     logger.info(`PubSub: Message sent for topic: ${this.topic.name}:`, {
       data,
@@ -42,5 +41,11 @@ export class Publisher<T = unknown> {
       await this.topic.create()
       logger.info(`PubSub: Topic ${this.topicName} is created`)
     }
+  }
+
+  private getAttributes() {
+    const traceContext = getTraceContext()
+    const traceContextName = getTraceContextName()
+    return traceContext ? { [traceContextName]: traceContext } : undefined
   }
 }

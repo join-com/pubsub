@@ -40,7 +40,7 @@
     "gcloud"
   ],
   "dependencies": {
-    "@google-cloud/pubsub": "^1.0.0",
+    "@google-cloud/pubsub": "1.0.0",
     "@join-com/gcloud-logger-trace": "^0.1.5",
     "@join-com/node-trace": "^0.1.5"
   },

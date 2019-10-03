@@ -25,7 +25,7 @@ export class Publisher<T = unknown> {
       : data
     const messageId = await this.topic.publishJSON(message, attributes)
 
-    logger.info(`PubSub: Message sent for topic: ${this.topic.name}:`, {
+    logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
       data,
       messageId
     })

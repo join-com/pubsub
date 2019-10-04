@@ -46,21 +46,42 @@ describe('Publisher', () => {
   describe('publishMsg', () => {
     const traceContext = 'trace-context'
     const traceContextName = 'trace-context-name'
+    const message = { id: 1 }
 
     beforeEach(() => {
       traceMock.getTraceContext.mockReturnValue(traceContext)
       traceMock.getTraceContextName.mockReturnValue(traceContextName)
     })
 
-    it('publishes json message with trace info', async () => {
-      const msg = { id: 1 }
+    it('publishes json object with trace info', async () => {
+      await publisher.publishMsg(message)
 
-      await publisher.publishMsg(msg)
+      expect(topicMock.publishJSON).toHaveBeenCalledWith(
+        {
+          [traceContextName]: traceContext,
+          ...message
+        },
+        {
+          [traceContextName]: traceContext
+        }
+      )
+    })
 
-      expect(topicMock.publishJSON).toHaveBeenCalledWith({
-        [traceContextName]: traceContext,
-        id: 1
+    it('publishes json array', async () => {
+      const array = [message, message]
+      await publisher.publishMsg(array)
+
+      expect(topicMock.publishJSON).toHaveBeenCalledWith(array, {
+        [traceContextName]: traceContext
       })
+    })
+
+    it('does not send trace info unless defined', async () => {
+      traceMock.getTraceContext.mockReturnValue(undefined)
+
+      await publisher.publishMsg({ id: 1 })
+
+      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, undefined)
     })
   })
 })

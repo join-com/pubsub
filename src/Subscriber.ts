@@ -63,12 +63,12 @@ export class Subscriber<T = unknown> {
   private parseData(message: Message): T {
     const dataParser = new DataParser()
     const dataParsed = dataParser.parse(message.data)
+    const attributes: { [key: string]: string } = message.attributes || {}
     const traceContextName = trace.getTraceContextName()
-    const traceId = dataParsed[traceContextName]
+    const traceId = attributes[traceContextName]
     trace.start(traceId)
 
     this.logMessage(message, dataParsed)
-    delete dataParsed[traceContextName]
     return dataParsed
   }
 

@@ -192,9 +192,9 @@
     semver "^6.2.0"
 
 "@grpc/grpc-js@^0.6.0":
-  version "0.6.4"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-0.6.4.tgz#02a39d31a41653914a3d520cb0ddfbb4745a2fee"
-  integrity sha512-W0lhteZFCWJnho7oYX3Hcm91/dAcSBnxq7en+Gzfl58SmxNfVSTfEtoqkU2ayCJg3ek6GcwoESFajhxdS722sw==
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-0.6.1.tgz#a2e7b5cbcc8422f00a43517b1f920fdb8e951a85"
+  integrity sha512-f7u4bXWaB6HyGLcBO3ZnHgKw9ZxoeAGykaVsWFiV96O6/fLfVcEqZ/VO8rBc37x+9Abk9VSJWwsdyyQfggDQJA==
   dependencies:
     semver "^6.2.0"
 

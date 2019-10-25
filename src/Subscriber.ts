@@ -1,15 +1,19 @@
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
-import { PubSub, Topic, Subscription, Message } from '@google-cloud/pubsub'
+import {
+  PubSub,
+  Topic,
+  Subscription,
+  Message,
+  SubscriptionOptions
+} from '@google-cloud/pubsub'
 import { DataParser } from './DataParser'
 
 export interface ParsedMessage<T = unknown> extends Message {
   dataParsed: T
 }
 
-export interface Options {
-  ackDeadlineSeconds?: number
-}
+export type Options = SubscriptionOptions
 
 export class Subscriber<T = unknown> {
   private readonly topic: Topic
@@ -23,8 +27,8 @@ export class Subscriber<T = unknown> {
     options?: Options
   ) {
     this.topic = client.topic(topicName)
-    this.subscription = this.topic.subscription(subscriptionName)
     this.options = options || {}
+    this.subscription = this.topic.subscription(subscriptionName, this.options)
   }
 
   public async initialize() {
@@ -106,7 +110,7 @@ export class Subscriber<T = unknown> {
     )
 
     if (!exist) {
-      await this.subscription.create(this.options)
+      await this.subscription.create()
       logger.info(`PubSub: Subscription ${this.subscriptionName} is created`)
     }
   }

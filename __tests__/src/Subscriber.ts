@@ -13,12 +13,15 @@ const subscription = 'subscription-name'
 const subscriptionMock = getSubscriptionMock()
 const topicMock = getTopicMock({ subscriptionMock })
 const clientMock = getClientMock({ topicMock })
+const options = {
+  ackDeadline: 10
+}
 
 describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber(topic, subscription, clientMock as any)
+    subscriber = new Subscriber(topic, subscription, clientMock as any, options)
   })
 
   afterEach(() => {
@@ -61,7 +64,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(subscription)
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscription, options)
     })
 
     it('does not create subscription if exists', async () => {
@@ -71,7 +74,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(subscription)
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscription, options)
     })
   })
 

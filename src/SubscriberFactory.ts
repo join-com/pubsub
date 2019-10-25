@@ -7,14 +7,22 @@ export type SubscriberInitializer<T> = (
 ) => Subscriber<T>
 
 export class SubscriberFactory {
-  constructor(protected client: PubSub = new PubSub()) {}
+  constructor(
+    protected client: PubSub = new PubSub(),
+    private options?: Options
+  ) {}
 
   public getSubscription<T>(
     topicName: string,
     subscriptionName: string,
     options?: Options
   ): Subscriber<T> {
-    return new Subscriber(topicName, subscriptionName, this.client, options)
+    return new Subscriber(
+      topicName,
+      subscriptionName,
+      this.client,
+      options || this.options
+    )
   }
 
   protected getSubscriberInitializer<T>(

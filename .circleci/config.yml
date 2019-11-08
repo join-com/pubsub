@@ -25,7 +25,7 @@ jobs:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
       - run:
           name: test
-          command: lerna run test
+          command: yarn lerna run test
       - store_test_results:
           path: log
       - store_artifacts:
@@ -38,8 +38,8 @@ jobs:
       - restore_cache:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
       - run:
-          name: yarn lint
-          command: yarn lint
+          name: lint
+          command: yarn lerna run lint
       - store_test_results:
           path: log
       - store_artifacts:

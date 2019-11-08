@@ -8,8 +8,8 @@ export type SubscriberInitializer<T> = (
 
 export class SubscriberFactory {
   constructor(
-    protected client: PubSub = new PubSub(),
-    private options?: Options
+    private options?: Options,
+    protected client: PubSub = new PubSub()
   ) {}
 
   public getSubscription<T>(

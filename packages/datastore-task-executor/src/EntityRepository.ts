@@ -4,7 +4,7 @@ import { EntityManager } from './EntityManager'
 export class EntityRepository<T = unknown> {
   private entityManager: EntityManager<T>
 
-  constructor(private entity: string, private client: Datastore) {
+  constructor(readonly entity: string, readonly client: Datastore) {
     this.entityManager = new EntityManager(entity, client)
   }
 
@@ -17,7 +17,7 @@ export class EntityRepository<T = unknown> {
   }
 
   public async runInTransaction<U>(
-    fn: (manager: EntityManager<T>) => Promise<U>
+    fn: (manager: EntityManager<T>) => Promise<U> | U
   ): Promise<U> {
     const transaction = this.client.transaction()
     const entityManager = new EntityManager<T>(this.entity, transaction)

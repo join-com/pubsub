@@ -1,7 +1,7 @@
 import { DatastoreRequest } from '@google-cloud/datastore'
 
 export class EntityManager<T = unknown> {
-  constructor(private entity: string, private client: DatastoreRequest) {}
+  constructor(readonly entity: string, readonly client: DatastoreRequest) {}
 
   public async set(id: string, data: T): Promise<void> {
     const key = this.getKey(id)

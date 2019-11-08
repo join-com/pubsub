@@ -5,7 +5,7 @@ interface ITask {
 }
 
 export class TaskExecutor {
-  constructor(private repository: EntityRepository<ITask>) {}
+  constructor(readonly repository: EntityRepository<ITask>) {}
 
   public async execute(taskId: string, action: () => Promise<void>) {
     const registered = await this.register(taskId)

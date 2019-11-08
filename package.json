@@ -1,6 +1,6 @@
 {
   "name": "@join-com/pubsub",
-  "version": "0.0.17",
+  "version": "0.0.19",
   "description": "Google Cloud PubSub wrapper",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -37,9 +37,7 @@
     "husky": "^3.0.9",
     "lerna": "^3.18.4",
     "lint-staged": "^9.4.2",
-    "prettier": "^1.18.2",
-    "tslint": "^5.20.1",
-    "typescript": "^3.7.2"
+    "prettier": "^1.18.2"
   },
   "dependencies": {}
 }

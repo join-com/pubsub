@@ -8,6 +8,7 @@ import {
   SubscriptionOptions
 } from '@google-cloud/pubsub'
 import { DataParser } from './DataParser'
+import { ITaskExecutor, DefaultTaskExecutor } from './DefaultTaskExecutor'
 
 export interface ParsedMessage<T = unknown> extends Message {
   dataParsed: T
@@ -19,16 +20,19 @@ export class Subscriber<T = unknown> {
   private readonly topic: Topic
   private readonly subscription: Subscription
   private readonly options: Options
+  private readonly taskExecutor: ITaskExecutor
 
   constructor(
     readonly topicName: string,
     readonly subscriptionName: string,
-    client: PubSub,
-    options?: Options
+    pubsubClient: PubSub,
+    options?: Options,
+    taskExecutor?: ITaskExecutor
   ) {
-    this.topic = client.topic(topicName)
+    this.topic = pubsubClient.topic(topicName)
     this.options = options || {}
     this.subscription = this.topic.subscription(subscriptionName, this.options)
+    this.taskExecutor = taskExecutor || new DefaultTaskExecutor()
   }
 
   public async initialize() {
@@ -79,9 +83,12 @@ export class Subscriber<T = unknown> {
   private processMsg(asyncCallback: (msg: ParsedMessage<T>) => Promise<void>) {
     return async (message: Message) => {
       try {
-        const dataParsed = this.parseData(message)
-        const messageParsed = Object.assign(message, { dataParsed })
-        await asyncCallback(messageParsed)
+        const processAction = () => {
+          const dataParsed = this.parseData(message)
+          const messageParsed = Object.assign(message, { dataParsed })
+          return asyncCallback(messageParsed)
+        }
+        await this.taskExecutor.execute(message.id, processAction)
       } catch (e) {
         message.nack()
         reportError(e)

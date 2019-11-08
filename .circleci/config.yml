@@ -24,6 +24,9 @@ jobs:
       - restore_cache:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
       - run:
+          name: install modules
+          command: yarn lerna exec yarn install
+      - run:
           name: test
           command: yarn lerna run test
       - store_test_results:
@@ -37,6 +40,9 @@ jobs:
       - checkout
       - restore_cache:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
+      - run:
+          name: install modules
+          command: yarn lerna exec yarn install
       - run:
           name: lint
           command: yarn lerna run lint

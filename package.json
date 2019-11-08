@@ -7,6 +7,10 @@
   "repository": "github:join-com/pubsub",
   "author": "JOIN AG",
   "license": "UNLICENSED",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "makepretty": "prettier --write '**/*.ts'"
   },

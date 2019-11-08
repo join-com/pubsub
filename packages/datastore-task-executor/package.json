@@ -1,0 +1,40 @@
+{
+  "name": "@join-com/datastore-task-executor",
+  "version": "0.0.17",
+  "description": "Tracks executing tasks by storing info into Datastore",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "repository": "github:join-com/pubsub",
+  "author": "JOIN AG",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc",
+    "test": "yarn jest --runInBand --forceExit",
+    "test:watch": "yarn test --watch",
+    "lint:fix": "yarn lint --fix",
+    "lint": "tslint -p ."
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "datastore",
+    "idempotent"
+  ],
+  "dependencies": {
+    "@google-cloud/datastore": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.22",
+    "@types/node": "^12.12.6",
+    "jest": "^24.9.0",
+    "jest-watch-typeahead": "^0.4.0",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.1",
+    "tslint-no-focused-test": "^0.5.0",
+    "typescript": "^3.7.2"
+  }
+}

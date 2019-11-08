@@ -17,7 +17,7 @@ jobs:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
           paths:
             - node_modules
-  test_pubsub:
+  test:
     <<: *defaults
     steps:
       - checkout
@@ -25,7 +25,7 @@ jobs:
           key: v1-yarn-lock-cache-{{ checksum "yarn.lock" }}
       - run:
           name: test
-          command: yarn test
+          command: lerna run test
       - store_test_results:
           path: log
       - store_artifacts:

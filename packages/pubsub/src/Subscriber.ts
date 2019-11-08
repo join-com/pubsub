@@ -1,16 +1,16 @@
+import {
+  Message,
+  PubSub,
+  Subscription,
+  SubscriptionOptions,
+  Topic
+} from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
-import {
-  PubSub,
-  Topic,
-  Subscription,
-  Message,
-  SubscriptionOptions
-} from '@google-cloud/pubsub'
 import { DataParser } from './DataParser'
-import { ITaskExecutor, DefaultTaskExecutor } from './DefaultTaskExecutor'
+import { DefaultTaskExecutor, ITaskExecutor } from './DefaultTaskExecutor'
 
-export interface ParsedMessage<T = unknown> extends Message {
+export interface IParsedMessage<T = unknown> extends Message {
   dataParsed: T
 }
 
@@ -45,7 +45,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public start(asyncCallback: (msg: ParsedMessage<T>) => Promise<void>) {
+  public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     this.subscription.on('error', reportError)
     this.subscription.on('message', this.processMsg(asyncCallback))
     logger.info(
@@ -80,7 +80,7 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
-  private processMsg(asyncCallback: (msg: ParsedMessage<T>) => Promise<void>) {
+  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     return async (message: Message) => {
       try {
         const processAction = () => {

@@ -1,5 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { Subscriber, Options } from './Subscriber'
+import { Options, Subscriber } from './Subscriber'
 
 export type SubscriberInitializer<T> = (
   subscriptionName: string,

@@ -8,12 +8,11 @@
   "author": "JOIN AG",
   "license": "UNLICENSED",
   "scripts": {
-    "makepretty": "prettier --write '**/*.ts'",
-    "lint": "yarn tslint -p ."
+    "makepretty": "prettier --write '**/*.ts'"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn tsc --noEmit && lint-staged"
+      "pre-commit": "lerna run build && lint-staged"
     }
   },
   "lint-staged": {

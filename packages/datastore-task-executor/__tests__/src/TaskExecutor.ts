@@ -73,7 +73,7 @@ describe('TaskExecutor', () => {
     })
 
     it('skips execution if task has FAILED status', async () => {
-      managerMock.get.mockResolvedValue(processingStatus)
+      managerMock.get.mockResolvedValue(failedStatus)
 
       await taskExecutor.execute(taskId, action)
 

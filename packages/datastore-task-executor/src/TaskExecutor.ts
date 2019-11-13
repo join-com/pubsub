@@ -10,8 +10,8 @@ export class TaskExecutor {
 
   public async execute(taskId: string, action: () => Promise<void>) {
     logger.debug('Task execution starts', { taskId })
-    const registered = await this.register(taskId)
-    if (!registered) {
+    const isNewlyRegistered = await this.register(taskId)
+    if (!isNewlyRegistered) {
       logger.debug('Task execution skipped', { taskId })
       return
     }

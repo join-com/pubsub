@@ -11,7 +11,7 @@ const repositoryMock = {
   runInTransaction: jest.fn(task => task(managerMock))
 }
 
-describe('TaskExecuter', () => {
+describe('TaskExecutor', () => {
   const taskId = 'task-id'
 
   let taskExecutor: TaskExecutor
@@ -38,7 +38,7 @@ describe('TaskExecuter', () => {
       action.mockReset()
     })
 
-    it('executes unless task already register', async () => {
+    it('executes unless task was already registered', async () => {
       managerMock.get.mockResolvedValue(undefined)
 
       await taskExecutor.execute(taskId, action)

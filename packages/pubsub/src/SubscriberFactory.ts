@@ -1,34 +1,37 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { Subscriber, Options } from './Subscriber'
+import { ITaskExecutor } from './DefaultTaskExecutor'
+import { ISubscriptionOptions, Subscriber } from './Subscriber'
 
 export type SubscriberInitializer<T> = (
   subscriptionName: string,
-  options?: Options
+  options?: ISubscriptionOptions
 ) => Subscriber<T>
 
 export class SubscriberFactory {
   constructor(
-    private options?: Options,
-    protected client: PubSub = new PubSub()
+    readonly options?: ISubscriptionOptions,
+    readonly client: PubSub = new PubSub(),
+    readonly taskExecutor?: ITaskExecutor
   ) {}
 
   public getSubscription<T>(
     topicName: string,
     subscriptionName: string,
-    options?: Options
+    options?: ISubscriptionOptions
   ): Subscriber<T> {
     return new Subscriber(
       topicName,
       subscriptionName,
       this.client,
-      options || this.options
+      options || this.options,
+      this.taskExecutor
     )
   }
 
   protected getSubscriberInitializer<T>(
     topicName: string
   ): SubscriberInitializer<T> {
-    return (subscriptionName: string, options?: Options) => {
+    return (subscriptionName: string, options?: ISubscriptionOptions) => {
       return this.getSubscription(topicName, subscriptionName, options)
     }
   }

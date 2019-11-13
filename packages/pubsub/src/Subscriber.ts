@@ -1,34 +1,43 @@
+import { Message, PubSub, Subscription, Topic } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
-import {
-  PubSub,
-  Topic,
-  Subscription,
-  Message,
-  SubscriptionOptions
-} from '@google-cloud/pubsub'
 import { DataParser } from './DataParser'
+import { DefaultTaskExecutor, ITaskExecutor } from './DefaultTaskExecutor'
 
-export interface ParsedMessage<T = unknown> extends Message {
+export interface IParsedMessage<T = unknown> extends Message {
   dataParsed: T
 }
 
-export type Options = SubscriptionOptions
+export interface ISubscriptionOptions {
+  ackDeadline?: number
+  flowControl?: {
+    allowExcessMessages?: boolean
+    maxMessages?: number
+  }
+  streamingOptions?: {
+    highWaterMark?: number
+    maxStreams?: number
+    timeout?: number
+  }
+}
 
 export class Subscriber<T = unknown> {
   private readonly topic: Topic
   private readonly subscription: Subscription
-  private readonly options: Options
+  private readonly options: ISubscriptionOptions
+  private readonly taskExecutor: ITaskExecutor
 
   constructor(
     readonly topicName: string,
     readonly subscriptionName: string,
-    client: PubSub,
-    options?: Options
+    pubsubClient: PubSub,
+    options?: ISubscriptionOptions,
+    taskExecutor?: ITaskExecutor
   ) {
-    this.topic = client.topic(topicName)
+    this.topic = pubsubClient.topic(topicName)
     this.options = options || {}
     this.subscription = this.topic.subscription(subscriptionName, this.options)
+    this.taskExecutor = taskExecutor || new DefaultTaskExecutor()
   }
 
   public async initialize() {
@@ -41,7 +50,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public start(asyncCallback: (msg: ParsedMessage<T>) => Promise<void>) {
+  public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     this.subscription.on('error', reportError)
     this.subscription.on('message', this.processMsg(asyncCallback))
     logger.info(
@@ -76,12 +85,15 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
-  private processMsg(asyncCallback: (msg: ParsedMessage<T>) => Promise<void>) {
+  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     return async (message: Message) => {
       try {
-        const dataParsed = this.parseData(message)
-        const messageParsed = Object.assign(message, { dataParsed })
-        await asyncCallback(messageParsed)
+        const processAction = () => {
+          const dataParsed = this.parseData(message)
+          const messageParsed = Object.assign(message, { dataParsed })
+          return asyncCallback(messageParsed)
+        }
+        await this.taskExecutor.execute(message.id, processAction)
       } catch (e) {
         message.nack()
         reportError(e)

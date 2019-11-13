@@ -1,6 +1,6 @@
+import { PubSub, Topic } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
-import { PubSub, Topic } from '@google-cloud/pubsub'
 
 export class Publisher<T = unknown> {
   private topic: Topic

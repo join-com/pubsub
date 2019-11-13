@@ -53,5 +53,5 @@
     "emitDecoratorMetadata": false /* Enables experimental support for emitting type metadata for decorators. */,
     "skipLibCheck": true
   },
-  "include": ["./src/**/*"]
+  "include": ["packages/pubsub/src/**/*", "packages/datastore-task-executor/src/**/*"]
 }

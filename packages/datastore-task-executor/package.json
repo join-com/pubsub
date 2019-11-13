@@ -25,7 +25,6 @@
     "idempotent"
   ],
   "dependencies": {
-    "@google-cloud/datastore": "^4.5.0",
     "@join-com/gcloud-logger-trace": "^0.1.5"
   },
   "devDependencies": {

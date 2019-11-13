@@ -72,8 +72,8 @@ describe('TaskExecutor', () => {
       expect(action).not.toHaveBeenCalled()
     })
 
-    it('skips execution if task has FAILED status', async () => {
-      managerMock.get.mockResolvedValue(failedStatus)
+    it('skips execution if task has COMPLETED status', async () => {
+      managerMock.get.mockResolvedValue(completedStatus)
 
       await taskExecutor.execute(taskId, action)
 

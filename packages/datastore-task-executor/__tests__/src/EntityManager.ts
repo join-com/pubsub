@@ -1,6 +1,7 @@
-import { EntityManager } from '../../src/EntityManager'
+import { EntityManager, IEntityManagerClient } from '../../src/EntityManager'
+import { Mock } from '../support/Mock'
 
-const clientMock = {
+const clientMock: Mock<IEntityManagerClient> = {
   key: jest.fn(),
   get: jest.fn(),
   save: jest.fn()
@@ -15,7 +16,7 @@ describe('EntityManager', () => {
   let entityManager: EntityManager
 
   beforeEach(() => {
-    entityManager = new EntityManager(entityName, clientMock as any)
+    entityManager = new EntityManager(entityName, clientMock)
     clientMock.key.mockReturnValue(key)
   })
 

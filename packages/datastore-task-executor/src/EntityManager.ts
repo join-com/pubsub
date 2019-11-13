@@ -1,7 +1,19 @@
-import { DatastoreRequest } from '@google-cloud/datastore'
+type Key = any
+type GetKeyAttrs = [string, string]
 
-export class EntityManager<T = unknown> {
-  constructor(readonly entity: string, readonly client: DatastoreRequest) {}
+export interface IEntityManagerClient {
+  key?: (attrs: GetKeyAttrs) => Key
+  get: (key: Key | Key[]) => Promise<[any]>
+  save: (data: { key: Key; data: any }) => Promise<any>
+}
+
+export interface IEntityManager<T> {
+  set: (id: string, data: T) => Promise<void>
+  get: (id: string) => Promise<T | undefined>
+}
+
+export class EntityManager<T = unknown> implements IEntityManager<T> {
+  constructor(readonly entity: string, readonly client: IEntityManagerClient) {}
 
   public async set(id: string, data: T): Promise<void> {
     const key = this.getKey(id)
@@ -15,6 +27,9 @@ export class EntityManager<T = unknown> {
   }
 
   private getKey(id: string) {
+    if (!this.client.key) {
+      throw new Error('No "key" method found')
+    }
     return this.client.key([this.entity, id])
   }
 }

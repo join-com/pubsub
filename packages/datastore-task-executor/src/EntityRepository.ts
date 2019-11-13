@@ -1,10 +1,36 @@
-import { Datastore } from '@google-cloud/datastore'
-import { EntityManager } from './EntityManager'
+import {
+  EntityManager,
+  IEntityManager,
+  IEntityManagerClient
+} from './EntityManager'
 
-export class EntityRepository<T = unknown> {
-  private entityManager: EntityManager<T>
+export interface IEntityRepositoryClient extends IEntityManagerClient {
+  transaction: () => IEntityRepositoryTransaction
+}
 
-  constructor(readonly entity: string, readonly client: Datastore) {
+export interface IEntityRepositoryTransaction extends IEntityManagerClient {
+  run: () => Promise<void>
+  commit: () => Promise<void>
+  rollback: () => Promise<void>
+}
+
+export interface IEntityRepository<T> {
+  set: (id: string, data: T) => Promise<void>
+  get: (id: string) => Promise<T | undefined>
+  runInTransaction: <U>(fn: TransactionCallback<T, U>) => Promise<U>
+}
+
+export type TransactionCallback<T, U> = (
+  manager: IEntityManager<T>
+) => Promise<U> | U
+
+export class EntityRepository<T = unknown> implements IEntityRepository<T> {
+  private entityManager: IEntityManager<T>
+
+  constructor(
+    readonly entity: string,
+    readonly client: IEntityRepositoryClient
+  ) {
     this.entityManager = new EntityManager(entity, client)
   }
 
@@ -16,9 +42,7 @@ export class EntityRepository<T = unknown> {
     return this.entityManager.get(id)
   }
 
-  public async runInTransaction<U>(
-    fn: (manager: EntityManager<T>) => Promise<U> | U
-  ): Promise<U> {
+  public async runInTransaction<U>(fn: TransactionCallback<T, U>): Promise<U> {
     const transaction = this.client.transaction()
     const entityManager = new EntityManager<T>(this.entity, transaction)
     try {

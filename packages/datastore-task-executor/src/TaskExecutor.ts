@@ -1,12 +1,12 @@
 import { logger } from '@join-com/gcloud-logger-trace'
-import { EntityRepository } from './EntityRepository'
+import { IEntityRepository } from './EntityRepository'
 
-interface ITask {
+export interface ITask {
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED'
 }
 
 export class TaskExecutor {
-  constructor(readonly repository: EntityRepository<ITask>) {}
+  constructor(readonly repository: IEntityRepository<ITask>) {}
 
   public async execute(taskId: string, action: () => Promise<void>) {
     logger.debug('Task execution starts', { taskId })

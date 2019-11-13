@@ -1,6 +1,10 @@
-import { EntityRepository } from '../../src/EntityRepository'
+import {
+  EntityRepository,
+  IEntityRepositoryClient
+} from '../../src/EntityRepository'
+import { Mock } from '../support/Mock'
 
-const clientMock = {
+const clientMock: Mock<IEntityRepositoryClient> = {
   key: jest.fn(),
   get: jest.fn(),
   save: jest.fn(),
@@ -15,7 +19,7 @@ describe('EntityRepository', () => {
   let entityRepository: EntityRepository
 
   beforeEach(() => {
-    entityRepository = new EntityRepository(entityName, clientMock as any)
+    entityRepository = new EntityRepository(entityName, clientMock)
   })
 
   afterEach(() => {

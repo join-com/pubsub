@@ -1,11 +1,14 @@
-import { TaskExecutor } from '../../src/TaskExecutor'
+import { IEntityManager } from '../../src/EntityManager'
+import { IEntityRepository } from '../../src/EntityRepository'
+import { ITask, TaskExecutor } from '../../src/TaskExecutor'
+import { Mock } from '../support/Mock'
 
-const managerMock = {
+const managerMock: Mock<IEntityManager<unknown>> = {
   set: jest.fn(),
   get: jest.fn()
 }
 
-const repositoryMock = {
+const repositoryMock: Mock<IEntityRepository<ITask>> = {
   set: jest.fn(),
   get: jest.fn(),
   runInTransaction: jest.fn(task => task(managerMock))
@@ -17,7 +20,7 @@ describe('TaskExecutor', () => {
   let taskExecutor: TaskExecutor
 
   beforeEach(() => {
-    taskExecutor = new TaskExecutor(repositoryMock as any)
+    taskExecutor = new TaskExecutor(repositoryMock)
   })
 
   afterEach(() => {

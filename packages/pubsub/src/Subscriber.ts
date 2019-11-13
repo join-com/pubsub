@@ -1,10 +1,4 @@
-import {
-  Message,
-  PubSub,
-  Subscription,
-  SubscriptionOptions,
-  Topic
-} from '@google-cloud/pubsub'
+import { Message, PubSub, Subscription, Topic } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
@@ -14,19 +8,30 @@ export interface IParsedMessage<T = unknown> extends Message {
   dataParsed: T
 }
 
-export type Options = SubscriptionOptions
+export interface ISubscriptionOptions {
+  ackDeadline?: number
+  flowControl?: {
+    allowExcessMessages?: boolean
+    maxMessages?: number
+  }
+  streamingOptions?: {
+    highWaterMark?: number
+    maxStreams?: number
+    timeout?: number
+  }
+}
 
 export class Subscriber<T = unknown> {
   private readonly topic: Topic
   private readonly subscription: Subscription
-  private readonly options: Options
+  private readonly options: ISubscriptionOptions
   private readonly taskExecutor: ITaskExecutor
 
   constructor(
     readonly topicName: string,
     readonly subscriptionName: string,
     pubsubClient: PubSub,
-    options?: Options,
+    options?: ISubscriptionOptions,
     taskExecutor?: ITaskExecutor
   ) {
     this.topic = pubsubClient.topic(topicName)

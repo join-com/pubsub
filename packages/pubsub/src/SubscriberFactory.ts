@@ -2,6 +2,8 @@ import { PubSub } from '@google-cloud/pubsub'
 import { ITaskExecutor } from './DefaultTaskExecutor'
 import { ISubscriptionOptions, Subscriber } from './Subscriber'
 
+export { ISubscriptionOptions } from './Subscriber'
+
 export type SubscriberInitializer<T> = (
   subscriptionName: string,
   options?: ISubscriptionOptions

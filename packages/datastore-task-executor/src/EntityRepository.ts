@@ -9,9 +9,9 @@ export interface IEntityRepositoryClient extends IEntityManagerClient {
 }
 
 export interface IEntityRepositoryTransaction extends IEntityManagerClient {
-  run: () => Promise<void>
-  commit: () => Promise<void>
-  rollback: () => Promise<void>
+  run: () => Promise<any>
+  commit: () => Promise<any>
+  rollback: () => Promise<any>
 }
 
 export interface IEntityRepository<T> {

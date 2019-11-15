@@ -1,6 +1,6 @@
 {
   "name": "@join-com/datastore-task-executor",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Tracks executing tasks by storing info into Datastore",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",

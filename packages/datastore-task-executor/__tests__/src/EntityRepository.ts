@@ -71,8 +71,7 @@ describe('EntityRepository', () => {
         manager => manager
       )
 
-      expect(entityManager.entity).toEqual(entityName)
-      expect(entityManager.client).toEqual(transactionMock)
+      expect(entityManager).toBeDefined()
       expect(transactionMock.run).toHaveBeenCalled()
       expect(transactionMock.commit).toHaveBeenCalled()
     })

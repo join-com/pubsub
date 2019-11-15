@@ -1,8 +1,12 @@
-import { EntityManager, IEntityManagerClient } from '../../src/EntityManager'
+import { IEntityKeyManager } from '../../src/EntityKeyManager'
+import { EntityManager, IRequestClient } from '../../src/EntityManager'
 import { Mock } from '../support/Mock'
 
-const clientMock: Mock<IEntityManagerClient> = {
-  key: jest.fn(),
+const keyManagerMock: Mock<IEntityKeyManager> = {
+  getKey: jest.fn()
+}
+
+const clientMock: Mock<IRequestClient> = {
   get: jest.fn(),
   save: jest.fn()
 }
@@ -16,12 +20,11 @@ describe('EntityManager', () => {
   let entityManager: EntityManager
 
   beforeEach(() => {
-    entityManager = new EntityManager(entityName, clientMock)
-    clientMock.key.mockReturnValue(key)
+    entityManager = new EntityManager(keyManagerMock, clientMock)
   })
 
   afterEach(() => {
-    clientMock.key.mockReset()
+    keyManagerMock.getKey.mockReset()
     clientMock.get.mockReset()
     clientMock.save.mockReset()
   })
@@ -29,20 +32,25 @@ describe('EntityManager', () => {
   describe('get', () => {
     beforeEach(() => {
       clientMock.get.mockResolvedValue([record])
+      keyManagerMock.getKey.mockReturnValue(key)
     })
 
     it('fetches record', async () => {
       const result = await entityManager.get(recordId)
-      expect(clientMock.key).toHaveBeenCalledWith([entityName, recordId])
+      expect(keyManagerMock.getKey).toHaveBeenCalledWith(recordId)
       expect(clientMock.get).toHaveBeenCalledWith(key)
       expect(result).toEqual(record)
     })
   })
 
   describe('set', () => {
+    beforeEach(() => {
+      keyManagerMock.getKey.mockReturnValue(key)
+    })
+
     it('saves record', async () => {
       await entityManager.set(recordId, record)
-      expect(clientMock.key).toHaveBeenCalledWith([entityName, recordId])
+      expect(keyManagerMock.getKey).toHaveBeenCalledWith(recordId)
       expect(clientMock.save).toHaveBeenCalledWith({ key, data: record })
     })
   })

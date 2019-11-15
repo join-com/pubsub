@@ -1,14 +1,11 @@
-import {
-  EntityManager,
-  IEntityManager,
-  IEntityManagerClient
-} from './EntityManager'
+import { EntityKeyManager, IKeyClient } from './EntityKeyManager'
+import { EntityManager, IEntityManager, IRequestClient } from './EntityManager'
 
-export interface IEntityRepositoryClient extends IEntityManagerClient {
+export interface IEntityRepositoryClient extends IRequestClient, IKeyClient {
   transaction: () => IEntityRepositoryTransaction
 }
 
-export interface IEntityRepositoryTransaction extends IEntityManagerClient {
+export interface IEntityRepositoryTransaction extends IRequestClient {
   run: () => Promise<any>
   commit: () => Promise<any>
   rollback: () => Promise<any>
@@ -31,7 +28,8 @@ export class EntityRepository<T = unknown> implements IEntityRepository<T> {
     readonly entity: string,
     readonly client: IEntityRepositoryClient
   ) {
-    this.entityManager = new EntityManager(entity, client)
+    const keyManager = new EntityKeyManager(entity, client)
+    this.entityManager = new EntityManager(keyManager, client)
   }
 
   public async set(id: string, data: T): Promise<void> {
@@ -44,7 +42,8 @@ export class EntityRepository<T = unknown> implements IEntityRepository<T> {
 
   public async runInTransaction<U>(fn: TransactionCallback<T, U>): Promise<U> {
     const transaction = this.client.transaction()
-    const entityManager = new EntityManager<T>(this.entity, transaction)
+    const keyManager = new EntityKeyManager(this.entity, this.client)
+    const entityManager = new EntityManager<T>(keyManager, transaction)
     try {
       await transaction.run()
       const result = await fn(entityManager)

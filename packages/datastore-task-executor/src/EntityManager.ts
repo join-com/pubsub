@@ -1,10 +1,8 @@
-type Key = any
-type GetKeyAttrs = [string, string]
+import { IEntityKeyManager, IKey } from './EntityKeyManager'
 
-export interface IEntityManagerClient {
-  key?: (attrs: GetKeyAttrs) => Key
-  get: (key: Key | Key[]) => Promise<[any]>
-  save: (data: { key: Key; data: any }) => Promise<any>
+export interface IRequestClient {
+  get: (key: IKey | IKey[]) => Promise<[any]>
+  save: (data: { key: IKey; data: any }) => Promise<any>
 }
 
 export interface IEntityManager<T> {
@@ -13,23 +11,19 @@ export interface IEntityManager<T> {
 }
 
 export class EntityManager<T = unknown> implements IEntityManager<T> {
-  constructor(readonly entity: string, readonly client: IEntityManagerClient) {}
+  constructor(
+    readonly keyManger: IEntityKeyManager,
+    readonly requestClient: IRequestClient
+  ) {}
 
   public async set(id: string, data: T): Promise<void> {
-    const key = this.getKey(id)
-    await this.client.save({ key, data })
+    const key = this.keyManger.getKey(id)
+    await this.requestClient.save({ key, data })
   }
 
   public async get(id: string): Promise<T | undefined> {
-    const key = this.getKey(id)
-    const [record] = await this.client.get(key)
+    const key = this.keyManger.getKey(id)
+    const [record] = await this.requestClient.get(key)
     return record
-  }
-
-  private getKey(id: string) {
-    if (!this.client.key) {
-      throw new Error('No "key" method found')
-    }
-    return this.client.key([this.entity, id])
   }
 }

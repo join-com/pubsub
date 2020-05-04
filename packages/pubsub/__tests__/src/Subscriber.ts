@@ -1,4 +1,4 @@
-import { Subscriber, ParsedMessage } from '../../src/Subscriber'
+import { Subscriber, IParsedMessage } from '../../src/Subscriber'
 import * as traceMock from '../../__mocks__/@join-com/node-trace'
 import {
   getClientMock,
@@ -92,7 +92,7 @@ describe('Subscriber', () => {
     })
 
     it('receives parsed data', async () => {
-      let parsedMessage: ParsedMessage<unknown>
+      let parsedMessage: IParsedMessage<unknown>
       subscriber.start(async msg => {
         parsedMessage = msg
       })
@@ -111,6 +111,23 @@ describe('Subscriber', () => {
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(messageMock.nack).toHaveBeenCalled()
+    })
+
+    it('restarts subscription on error', async () => {
+      subscriber.start(Promise.resolve)
+
+      await subscriptionMock.emitError(new Error('boom'))
+
+      expect(subscriptionMock.close).toHaveBeenCalled()
+      expect(subscriptionMock.open).toHaveBeenCalled()
+    })
+
+    it('restarts subscription on close', async () => {
+      subscriber.start(Promise.resolve)
+
+      await subscriptionMock.emitClose()
+
+      expect(subscriptionMock.open).toHaveBeenCalled()
     })
   })
 })

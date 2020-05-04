@@ -1,6 +1,7 @@
 node_modules
 yarn-error.log
 npm-debug.log
+lerna-debug.log
 .DS_Store
 *.orig
 .vscode/launch.json

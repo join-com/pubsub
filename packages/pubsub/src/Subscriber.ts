@@ -52,7 +52,6 @@ export class Subscriber<T = unknown> {
 
   public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     this.subscription.on('error', this.processError)
-    this.subscription.on('close', this.processClose)
     this.subscription.on('message', this.processMsg(asyncCallback))
     logger.info(
       `PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`
@@ -108,13 +107,6 @@ export class Subscriber<T = unknown> {
     this.subscription.open()
     logger.info('Reopened subscription after error', {
       error,
-      name: this.subscription.name
-    })
-  }
-
-  private processClose = () => {
-    this.subscription.open()
-    logger.info('Reopened subscription after close', {
       name: this.subscription.name
     })
   }

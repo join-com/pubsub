@@ -121,13 +121,5 @@ describe('Subscriber', () => {
       expect(subscriptionMock.close).toHaveBeenCalled()
       expect(subscriptionMock.open).toHaveBeenCalled()
     })
-
-    it('restarts subscription on close', async () => {
-      subscriber.start(Promise.resolve)
-
-      await subscriptionMock.emitClose()
-
-      expect(subscriptionMock.open).toHaveBeenCalled()
-    })
   })
 })

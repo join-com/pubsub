@@ -1,6 +1,6 @@
 {
   "name": "@join-com/pubsub",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "description": "Google Cloud PubSub wrapper",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -25,7 +25,7 @@
     "pubsub"
   ],
   "dependencies": {
-    "@google-cloud/pubsub": "^1.0.0",
+    "@google-cloud/pubsub": "^1.7.2",
     "@join-com/gcloud-logger-trace": "^0.1.5",
     "@join-com/node-trace": "^0.1.5"
   },

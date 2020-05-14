@@ -19,6 +19,9 @@ export interface ISubscriptionOptions {
     maxStreams?: number
     timeout?: number
   }
+  deadLetterPolicy?: {
+    maxDeliveryAttempts?: number
+  }
 }
 
 export class Subscriber<T = unknown> {
@@ -36,7 +39,10 @@ export class Subscriber<T = unknown> {
   ) {
     this.topic = pubsubClient.topic(topicName)
     this.options = options || {}
-    this.subscription = this.topic.subscription(subscriptionName, this.options)
+    this.subscription = this.topic.subscription(
+      subscriptionName,
+      this.getBaseOptions()
+    )
     this.taskExecutor = taskExecutor || new DefaultTaskExecutor()
   }
 
@@ -132,8 +138,22 @@ export class Subscriber<T = unknown> {
     )
 
     if (!exist) {
-      await this.subscription.create()
+      await this.subscription.create(this.getInitializationOptions())
       logger.info(`PubSub: Subscription ${this.subscriptionName} is created`)
+    }
+  }
+
+  private getBaseOptions() {
+    const { deadLetterPolicy, ...baseOptions } = this.options
+    return baseOptions
+  }
+
+  private getInitializationOptions() {
+    return {
+      deadLetterPolicy: this.options.deadLetterPolicy && {
+        ...this.options.deadLetterPolicy,
+        deadLetterTopic: `${this.subscriptionName}-dead-letters`
+      }
     }
   }
 }

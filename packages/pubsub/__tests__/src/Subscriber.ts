@@ -1,10 +1,10 @@
-import { Subscriber, IParsedMessage } from '../../src/Subscriber'
 import * as traceMock from '../../__mocks__/@join-com/node-trace'
+import { IParsedMessage, Subscriber } from '../../src/Subscriber'
 import {
   getClientMock,
-  getTopicMock,
-  getSubscriptionMock,
   getMessageMock,
+  getSubscriptionMock,
+  getTopicMock,
   MessageMock
 } from '../support/pubsubMock'
 
@@ -13,8 +13,26 @@ const subscription = 'subscription-name'
 const subscriptionMock = getSubscriptionMock()
 const topicMock = getTopicMock({ subscriptionMock })
 const clientMock = getClientMock({ topicMock })
+const baseOptions = {
+  ackDeadline: 10,
+  flowControl: {
+    allowExcessMessages: false,
+    maxMessages: 20
+  },
+  streamingOptions: {
+    highWaterMark: 30,
+    maxStreams: 40,
+    timeout: 50
+  }
+}
+const initializationOptions = {
+  deadLetterPolicy: {
+    maxDeliveryAttempts: 11
+  }
+}
 const options = {
-  ackDeadline: 10
+  ...baseOptions,
+  ...initializationOptions
 }
 
 describe('Subscriber', () => {
@@ -63,8 +81,16 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(subscription, options)
+      expect(subscriptionMock.create).toHaveBeenCalledWith({
+        deadLetterPolicy: {
+          ...initializationOptions.deadLetterPolicy,
+          deadLetterTopic: subscription + '-dead-letters'
+        }
+      })
+      expect(topicMock.subscription).toHaveBeenCalledWith(
+        subscription,
+        baseOptions
+      )
     })
 
     it('does not create subscription if exists', async () => {
@@ -74,7 +100,27 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(subscription, options)
+      expect(topicMock.subscription).toHaveBeenCalledWith(
+        subscription,
+        baseOptions
+      )
+    })
+
+    it('does not add dead letter policy when not requested', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([false])
+
+      const emptyOptions = {}
+      const optionlessSubscriber = new Subscriber(
+        topic,
+        subscription,
+        clientMock as any,
+        emptyOptions
+      )
+
+      await optionlessSubscriber.initialize()
+
+      expect(subscriptionMock.create).toHaveBeenCalledWith({})
     })
   })
 

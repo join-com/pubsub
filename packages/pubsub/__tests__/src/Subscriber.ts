@@ -5,7 +5,7 @@ import {
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  MessageMock
+  MessageMock,
 } from '../support/pubsubMock'
 
 const topic = 'topic-name'
@@ -17,22 +17,22 @@ const baseOptions = {
   ackDeadline: 10,
   flowControl: {
     allowExcessMessages: false,
-    maxMessages: 20
+    maxMessages: 20,
   },
   streamingOptions: {
     highWaterMark: 30,
     maxStreams: 40,
-    timeout: 50
-  }
+    timeout: 50,
+  },
 }
 const initializationOptions = {
   deadLetterPolicy: {
-    maxDeliveryAttempts: 11
-  }
+    maxDeliveryAttempts: 11,
+  },
 }
 const options = {
   ...baseOptions,
-  ...initializationOptions
+  ...initializationOptions,
 }
 
 describe('Subscriber', () => {
@@ -84,8 +84,8 @@ describe('Subscriber', () => {
       expect(subscriptionMock.create).toHaveBeenCalledWith({
         deadLetterPolicy: {
           ...initializationOptions.deadLetterPolicy,
-          deadLetterTopic: subscription + '-dead-letters'
-        }
+          deadLetterTopic: subscription + '-dead-letters',
+        },
       })
       expect(topicMock.subscription).toHaveBeenCalledWith(
         subscription,
@@ -139,7 +139,7 @@ describe('Subscriber', () => {
 
     it('receives parsed data', async () => {
       let parsedMessage: IParsedMessage<unknown>
-      subscriber.start(async msg => {
+      subscriber.start(async (msg) => {
         parsedMessage = msg
       })
 

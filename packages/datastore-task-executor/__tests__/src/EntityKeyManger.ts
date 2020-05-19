@@ -2,7 +2,7 @@ import { EntityKeyManager, IKeyClient } from '../../src/EntityKeyManager'
 import { Mock } from '../support/Mock'
 
 const clientMock: Mock<IKeyClient> = {
-  key: jest.fn()
+  key: jest.fn(),
 }
 
 describe('EntityKeyManager', () => {

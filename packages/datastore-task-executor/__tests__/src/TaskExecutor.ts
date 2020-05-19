@@ -5,13 +5,13 @@ import { Mock } from '../support/Mock'
 
 const managerMock: Mock<IEntityManager<unknown>> = {
   set: jest.fn(),
-  get: jest.fn()
+  get: jest.fn(),
 }
 
 const repositoryMock: Mock<IEntityRepository<ITask>> = {
   set: jest.fn(),
   get: jest.fn(),
-  runInTransaction: jest.fn(task => task(managerMock))
+  runInTransaction: jest.fn((task) => task(managerMock)),
 }
 
 describe('TaskExecutor', () => {
@@ -103,7 +103,7 @@ describe('TaskExecutor', () => {
 
       it('raises error', async () => {
         expect.assertions(1)
-        await taskExecutor.execute(taskId, action).catch(e => {
+        await taskExecutor.execute(taskId, action).catch((e) => {
           expect(e).toEqual(error)
         })
       })

@@ -70,7 +70,7 @@ export class Subscriber<T = unknown> {
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime,
-      received: message.received
+      received: message.received,
     }
 
     logger.info(
@@ -113,7 +113,7 @@ export class Subscriber<T = unknown> {
     this.subscription.open()
     logger.info('Reopened subscription after error', {
       error,
-      name: this.subscription.name
+      name: this.subscription.name,
     })
   }
 
@@ -152,8 +152,8 @@ export class Subscriber<T = unknown> {
     return {
       deadLetterPolicy: this.options.deadLetterPolicy && {
         ...this.options.deadLetterPolicy,
-        deadLetterTopic: `${this.subscriptionName}-dead-letters`
-      }
+        deadLetterTopic: `${this.subscriptionName}-dead-letters`,
+      },
     }
   }
 }

@@ -3,12 +3,12 @@ import { EntityManager, IRequestClient } from '../../src/EntityManager'
 import { Mock } from '../support/Mock'
 
 const keyManagerMock: Mock<IEntityKeyManager> = {
-  getKey: jest.fn()
+  getKey: jest.fn(),
 }
 
 const clientMock: Mock<IRequestClient> = {
   get: jest.fn(),
-  save: jest.fn()
+  save: jest.fn(),
 }
 
 describe('EntityManager', () => {

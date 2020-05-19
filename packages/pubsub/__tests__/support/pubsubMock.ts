@@ -29,7 +29,7 @@ export const getSubscriptionMock = () => {
         // undefined means no error when closing subscriber
         await handler(undefined)
       }
-    }
+    },
   }
 }
 
@@ -41,7 +41,7 @@ export const getTopicMock = ({ subscriptionMock }: TopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
   publishJSON: jest.fn(),
-  subscription: jest.fn(() => subscriptionMock)
+  subscription: jest.fn(() => subscriptionMock),
 })
 
 export interface ClientMockOption {
@@ -49,7 +49,7 @@ export interface ClientMockOption {
 }
 
 export const getClientMock = ({ topicMock }: ClientMockOption = {}) => ({
-  topic: jest.fn(() => topicMock)
+  topic: jest.fn(() => topicMock),
 })
 
 export interface MessageMock {
@@ -65,6 +65,6 @@ export const getMessageMock = (data: any, attributes: {} = {}): MessageMock => {
     data: buffer,
     attributes,
     ack: jest.fn(),
-    nack: jest.fn()
+    nack: jest.fn(),
   }
 }

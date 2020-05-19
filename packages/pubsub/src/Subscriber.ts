@@ -1,4 +1,10 @@
-import { Message, PubSub, Subscription, Topic } from '@google-cloud/pubsub'
+import {
+  Message,
+  PubSub,
+  Subscription,
+  Topic,
+  CreateSubscriptionOptions
+} from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
@@ -22,36 +28,58 @@ export interface ISubscriptionOptions {
   deadLetterPolicy?: {
     maxDeliveryAttempts?: number
   }
+  // TODO validate gcloudProject is given when isDeadLetterPolicyEnabled?
+  gcloudProject?: {
+    name: string
+    id: number
+  }
 }
 
 export class Subscriber<T = unknown> {
   private readonly topic: Topic
   private readonly subscription: Subscription
-  private readonly options: ISubscriptionOptions
-  private readonly taskExecutor: ITaskExecutor
+
+  private readonly deadLetterTopicName?: string
+  private readonly deadLetterTopic?: Topic
+  private readonly deadLetterSubscriptionName?: string
+  private readonly deadLetterSubscription?: Subscription
 
   constructor(
     readonly topicName: string,
     readonly subscriptionName: string,
     pubsubClient: PubSub,
-    options?: ISubscriptionOptions,
-    taskExecutor?: ITaskExecutor
+    private readonly options: ISubscriptionOptions = {},
+    private readonly taskExecutor: ITaskExecutor = new DefaultTaskExecutor()
   ) {
     this.topic = pubsubClient.topic(topicName)
-    this.options = options || {}
     this.subscription = this.topic.subscription(
       subscriptionName,
       this.getBaseOptions()
     )
-    this.taskExecutor = taskExecutor || new DefaultTaskExecutor()
+
+    if (this.isDeadLetterPolicyEnabled()) {
+      this.deadLetterTopicName = `${subscriptionName}-dead-letters`
+      this.deadLetterTopic = pubsubClient.topic(this.deadLetterTopicName)
+      this.deadLetterSubscriptionName = `${subscriptionName}-dead-letters-subscription`
+      this.deadLetterSubscription = this.topic.subscription(
+        this.deadLetterSubscriptionName
+      )
+    }
   }
 
   public async initialize() {
     try {
       await this.initializeTopic(this.topicName, this.topic)
+      await this.initializeTopic(this.deadLetterTopicName, this.deadLetterTopic)
+
       await this.initializeSubscription(
         this.subscriptionName,
-        this.subscription
+        this.subscription,
+        this.getInitializationOptions()
+      )
+      await this.initializeSubscription(
+        this.deadLetterSubscriptionName,
+        this.deadLetterSubscription
       )
     } catch (e) {
       reportError(e)
@@ -120,7 +148,11 @@ export class Subscriber<T = unknown> {
     })
   }
 
-  private async initializeTopic(topicName: string, topic: Topic) {
+  private async initializeTopic(topicName?: string, topic?: Topic) {
+    if (!topicName || !topic) {
+      return
+    }
+
     const [exist] = await topic.exists()
     logger.info(
       `PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`
@@ -133,9 +165,14 @@ export class Subscriber<T = unknown> {
   }
 
   private async initializeSubscription(
-    subscriptionName: string,
-    subscription: Subscription
+    subscriptionName?: string,
+    subscription?: Subscription,
+    options?: CreateSubscriptionOptions
   ) {
+    if (!subscriptionName || !subscription) {
+      return
+    }
+
     const [exist] = await subscription.exists()
     logger.info(
       `PubSub: Subscription ${subscriptionName} ${
@@ -144,7 +181,7 @@ export class Subscriber<T = unknown> {
     )
 
     if (!exist) {
-      await subscription.create(this.getInitializationOptions())
+      await subscription.create(options)
       logger.info(`PubSub: Subscription ${subscriptionName} is created`)
     }
   }
@@ -155,11 +192,22 @@ export class Subscriber<T = unknown> {
   }
 
   private getInitializationOptions() {
-    return {
-      deadLetterPolicy: this.options.deadLetterPolicy && {
+    const gcloudProjectName =
+      this.options.gcloudProject && this.options.gcloudProject.name
+    const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
+    const options = {
+      deadLetterPolicy: {
         ...this.options.deadLetterPolicy,
-        deadLetterTopic: `${this.subscriptionName}-dead-letters`
+        deadLetterTopic
       }
     }
+    return this.isDeadLetterPolicyEnabled() ? options : undefined
+  }
+
+  private isDeadLetterPolicyEnabled() {
+    return Boolean(
+      this.options.deadLetterPolicy &&
+        this.options.deadLetterPolicy.maxDeliveryAttempts
+    )
   }
 }

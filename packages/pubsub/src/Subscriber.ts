@@ -62,7 +62,7 @@ export class Subscriber<T = unknown> {
       this.deadLetterTopicName = `${subscriptionName}-dead-letters`
       this.deadLetterTopic = pubsubClient.topic(this.deadLetterTopicName)
       this.deadLetterSubscriptionName = `${subscriptionName}-dead-letters-subscription`
-      this.deadLetterSubscription = this.topic.subscription(
+      this.deadLetterSubscription = this.deadLetterTopic.subscription(
         this.deadLetterSubscriptionName
       )
     }
@@ -193,7 +193,7 @@ export class Subscriber<T = unknown> {
         this.deadLetterSubscription
       )
       await this.addPubsubServiceAccountRole(
-        this.deadLetterSubscription.iam,
+        this.subscription.iam,
         'roles/pubsub.subscriber'
       )
     }

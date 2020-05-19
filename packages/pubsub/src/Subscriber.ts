@@ -48,8 +48,11 @@ export class Subscriber<T = unknown> {
 
   public async initialize() {
     try {
-      await this.initializeTopic()
-      await this.initializeSubscription()
+      await this.initializeTopic(this.topicName, this.topic)
+      await this.initializeSubscription(
+        this.subscriptionName,
+        this.subscription
+      )
     } catch (e) {
       reportError(e)
       process.exit(1)
@@ -70,7 +73,7 @@ export class Subscriber<T = unknown> {
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime,
-      received: message.received,
+      received: message.received
     }
 
     logger.info(
@@ -113,33 +116,36 @@ export class Subscriber<T = unknown> {
     this.subscription.open()
     logger.info('Reopened subscription after error', {
       error,
-      name: this.subscription.name,
+      name: this.subscription.name
     })
   }
 
-  private async initializeTopic() {
-    const [exist] = await this.topic.exists()
+  private async initializeTopic(topicName: string, topic: Topic) {
+    const [exist] = await topic.exists()
     logger.info(
-      `PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`
+      `PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`
     )
 
     if (!exist) {
-      await this.topic.create()
-      logger.info(`PubSub: Topic ${this.topicName} is created`)
+      await topic.create()
+      logger.info(`PubSub: Topic ${topicName} is created`)
     }
   }
 
-  private async initializeSubscription() {
-    const [exist] = await this.subscription.exists()
+  private async initializeSubscription(
+    subscriptionName: string,
+    subscription: Subscription
+  ) {
+    const [exist] = await subscription.exists()
     logger.info(
-      `PubSub: Subscription ${this.subscriptionName} ${
+      `PubSub: Subscription ${subscriptionName} ${
         exist ? 'exists' : 'does not exist'
       }`
     )
 
     if (!exist) {
-      await this.subscription.create(this.getInitializationOptions())
-      logger.info(`PubSub: Subscription ${this.subscriptionName} is created`)
+      await subscription.create(this.getInitializationOptions())
+      logger.info(`PubSub: Subscription ${subscriptionName} is created`)
     }
   }
 
@@ -152,8 +158,8 @@ export class Subscriber<T = unknown> {
     return {
       deadLetterPolicy: this.options.deadLetterPolicy && {
         ...this.options.deadLetterPolicy,
-        deadLetterTopic: `${this.subscriptionName}-dead-letters`,
-      },
+        deadLetterTopic: `${this.subscriptionName}-dead-letters`
+      }
     }
   }
 }

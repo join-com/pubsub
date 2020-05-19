@@ -6,6 +6,7 @@ import {
 } from '../../src/Subscriber'
 import {
   getClientMock,
+  getIamMock,
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
@@ -15,8 +16,10 @@ import {
 const topicName = 'topic-name'
 const subscriptionName = 'subscription-name'
 
-const subscriptionMock = getSubscriptionMock()
-const topicMock = getTopicMock({ subscriptionMock })
+const iamSubscriptionMock = getIamMock()
+const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
+const iamTopicMock = getIamMock()
+const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
 
 const options: ISubscriptionOptions = {
@@ -54,6 +57,8 @@ describe('Subscriber', () => {
     subscriptionMock.create.mockReset()
     traceMock.getTraceContextName.mockReset()
     traceMock.start.mockReset()
+    iamTopicMock.setPolicy.mockReset()
+    iamSubscriptionMock.setPolicy.mockReset()
   })
 
   describe('initialize', () => {
@@ -142,6 +147,23 @@ describe('Subscriber', () => {
           expect(clientMock.topic).toHaveBeenLastCalledWith(deadLetterTopicName)
         })
 
+        it('adds publisher role to pubsub service account', async () => {
+          topicMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(iamTopicMock.setPolicy).toHaveBeenCalledWith({
+            bindings: [
+              {
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.publisher'
+              }
+            ]
+          })
+        })
+
         it('does not create deadLetterTopic if exists', async () => {
           topicMock.exists.mockResolvedValue([true])
 
@@ -165,6 +187,7 @@ describe('Subscriber', () => {
 
           expect(topicMock.create).toHaveBeenCalledTimes(1)
           expect(clientMock.topic).toHaveBeenLastCalledWith(topicName)
+          expect(iamTopicMock.setPolicy).not.toHaveBeenCalled()
         })
       })
 
@@ -183,6 +206,23 @@ describe('Subscriber', () => {
           expect(topicMock.subscription).toHaveBeenLastCalledWith(
             deadLetterSubscriptionName
           )
+        })
+
+        it('adds subscriber role to pubsub service account', async () => {
+          subscriptionMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(iamSubscriptionMock.setPolicy).toHaveBeenCalledWith({
+            bindings: [
+              {
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.subscriber'
+              }
+            ]
+          })
         })
 
         it('does not create deadLetterSubscription if exists', async () => {
@@ -214,6 +254,7 @@ describe('Subscriber', () => {
             deadLetterSubscriptionName,
             expect.anything()
           )
+          expect(iamSubscriptionMock.setPolicy).not.toHaveBeenCalled()
         })
 
         it('creates subscription with deadLetterTopic reference', async () => {

@@ -1,9 +1,10 @@
 import {
+  CreateSubscriptionOptions,
+  IAM,
   Message,
   PubSub,
   Subscription,
-  Topic,
-  CreateSubscriptionOptions
+  Topic
 } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
@@ -70,17 +71,14 @@ export class Subscriber<T = unknown> {
   public async initialize() {
     try {
       await this.initializeTopic(this.topicName, this.topic)
-      await this.initializeTopic(this.deadLetterTopicName, this.deadLetterTopic)
+      await this.initializeDeadLetterTopic()
 
       await this.initializeSubscription(
         this.subscriptionName,
         this.subscription,
         this.getInitializationOptions()
       )
-      await this.initializeSubscription(
-        this.deadLetterSubscriptionName,
-        this.deadLetterSubscription
-      )
+      await this.initializeDeadLetterSubscription()
     } catch (e) {
       reportError(e)
       process.exit(1)
@@ -148,11 +146,7 @@ export class Subscriber<T = unknown> {
     })
   }
 
-  private async initializeTopic(topicName?: string, topic?: Topic) {
-    if (!topicName || !topic) {
-      return
-    }
-
+  private async initializeTopic(topicName: string, topic: Topic) {
     const [exist] = await topic.exists()
     logger.info(
       `PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`
@@ -165,14 +159,10 @@ export class Subscriber<T = unknown> {
   }
 
   private async initializeSubscription(
-    subscriptionName?: string,
-    subscription?: Subscription,
+    subscriptionName: string,
+    subscription: Subscription,
     options?: CreateSubscriptionOptions
   ) {
-    if (!subscriptionName || !subscription) {
-      return
-    }
-
     const [exist] = await subscription.exists()
     logger.info(
       `PubSub: Subscription ${subscriptionName} ${
@@ -184,6 +174,47 @@ export class Subscriber<T = unknown> {
       await subscription.create(options)
       logger.info(`PubSub: Subscription ${subscriptionName} is created`)
     }
+  }
+
+  private async initializeDeadLetterTopic() {
+    if (this.deadLetterTopicName && this.deadLetterTopic) {
+      await this.initializeTopic(this.deadLetterTopicName, this.deadLetterTopic)
+      await this.addPubsubServiceAccountRole(
+        this.deadLetterTopic.iam,
+        'roles/pubsub.publisher'
+      )
+    }
+  }
+
+  private async initializeDeadLetterSubscription() {
+    if (this.deadLetterSubscriptionName && this.deadLetterSubscription) {
+      await this.initializeSubscription(
+        this.deadLetterSubscriptionName,
+        this.deadLetterSubscription
+      )
+      await this.addPubsubServiceAccountRole(
+        this.deadLetterSubscription.iam,
+        'roles/pubsub.subscriber'
+      )
+    }
+  }
+
+  private async addPubsubServiceAccountRole(
+    iam: IAM,
+    role: 'roles/pubsub.subscriber' | 'roles/pubsub.publisher'
+  ) {
+    const gcloudProjectId =
+      this.options.gcloudProject && this.options.gcloudProject.id
+    const pubsubServiceAccount = `serviceAccount:service-${gcloudProjectId}@gcp-sa-pubsub.iam.gserviceaccount.com`
+
+    await iam.setPolicy({
+      bindings: [
+        {
+          members: [pubsubServiceAccount],
+          role
+        }
+      ]
+    })
   }
 
   private getBaseOptions() {

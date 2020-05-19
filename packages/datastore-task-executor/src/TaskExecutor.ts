@@ -30,7 +30,7 @@ export class TaskExecutor {
   }
 
   private register(taskId: string): Promise<boolean> {
-    return this.repository.runInTransaction(async (manager) => {
+    return this.repository.runInTransaction(async manager => {
       const record = await manager.get(taskId)
       if (record && record.status !== 'FAILED') {
         logger.debug('Task was already processed', record)

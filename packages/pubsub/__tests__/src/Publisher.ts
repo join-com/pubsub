@@ -59,10 +59,10 @@ describe('Publisher', () => {
       expect(topicMock.publishJSON).toHaveBeenCalledWith(
         {
           [traceContextName]: traceContext,
-          ...message,
+          ...message
         },
         {
-          [traceContextName]: traceContext,
+          [traceContextName]: traceContext
         }
       )
     })
@@ -72,7 +72,7 @@ describe('Publisher', () => {
       await publisher.publishMsg(array)
 
       expect(topicMock.publishJSON).toHaveBeenCalledWith(array, {
-        [traceContextName]: traceContext,
+        [traceContextName]: traceContext
       })
     })
 

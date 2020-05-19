@@ -27,7 +27,7 @@ export class Publisher<T = unknown> {
 
     logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
       data,
-      messageId,
+      messageId
     })
   }
 

@@ -1,6 +1,6 @@
 import {
   EntityRepository,
-  IEntityRepositoryClient,
+  IEntityRepositoryClient
 } from '../../src/EntityRepository'
 import { Mock } from '../support/Mock'
 
@@ -8,7 +8,7 @@ const clientMock: Mock<IEntityRepositoryClient> = {
   key: jest.fn(),
   get: jest.fn(),
   save: jest.fn(),
-  transaction: jest.fn(),
+  transaction: jest.fn()
 }
 
 describe('EntityRepository', () => {
@@ -53,7 +53,7 @@ describe('EntityRepository', () => {
     const transactionMock = {
       run: jest.fn(),
       commit: jest.fn(),
-      rollback: jest.fn(),
+      rollback: jest.fn()
     }
 
     beforeEach(() => {
@@ -68,7 +68,7 @@ describe('EntityRepository', () => {
 
     it('runs transaction', async () => {
       const entityManager = await entityRepository.runInTransaction(
-        (manager) => manager
+        manager => manager
       )
 
       expect(entityManager).toBeDefined()
@@ -84,7 +84,7 @@ describe('EntityRepository', () => {
         .runInTransaction(() => {
           throw error
         })
-        .catch((e) => {
+        .catch(e => {
           expect(transactionMock.rollback).toHaveBeenCalled()
           expect(e).toEqual(error)
         })

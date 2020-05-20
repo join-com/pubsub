@@ -1,13 +1,24 @@
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
-export const getSubscriptionMock = () => {
+export const getIamMock = () => ({
+  setPolicy: jest.fn()
+})
+
+export interface SubscriptionMockOption {
+  iamMock?: ReturnType<typeof getIamMock>
+}
+
+export const getSubscriptionMock = ({
+  iamMock
+}: SubscriptionMockOption = {}) => {
   const eventHandlers: EventHandlerMap = {}
   return {
     exists: jest.fn(),
     create: jest.fn(),
     close: jest.fn(),
     open: jest.fn(),
+    iam: iamMock,
     on: (event: string, handler: EventHandler) => {
       eventHandlers[event] = handler
     },
@@ -34,18 +45,23 @@ export const getSubscriptionMock = () => {
 }
 
 export interface TopicMockOption {
-  subscriptionMock?: any
+  subscriptionMock?: ReturnType<typeof getSubscriptionMock>
+  iamMock?: ReturnType<typeof getIamMock>
 }
 
-export const getTopicMock = ({ subscriptionMock }: TopicMockOption = {}) => ({
+export const getTopicMock = ({
+  subscriptionMock,
+  iamMock
+}: TopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
   publishJSON: jest.fn(),
-  subscription: jest.fn(() => subscriptionMock)
+  subscription: jest.fn(() => subscriptionMock),
+  iam: iamMock
 })
 
 export interface ClientMockOption {
-  topicMock?: any
+  topicMock?: ReturnType<typeof getTopicMock>
 }
 
 export const getClientMock = ({ topicMock }: ClientMockOption = {}) => ({

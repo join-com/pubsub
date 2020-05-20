@@ -1,19 +1,28 @@
 import * as traceMock from '../../__mocks__/@join-com/node-trace'
-import { IParsedMessage, Subscriber } from '../../src/Subscriber'
+import {
+  IParsedMessage,
+  ISubscriptionOptions,
+  Subscriber
+} from '../../src/Subscriber'
 import {
   getClientMock,
+  getIamMock,
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
   MessageMock
 } from '../support/pubsubMock'
 
-const topic = 'topic-name'
-const subscription = 'subscription-name'
-const subscriptionMock = getSubscriptionMock()
-const topicMock = getTopicMock({ subscriptionMock })
+const topicName = 'topic-name'
+const subscriptionName = 'subscription-name'
+
+const iamSubscriptionMock = getIamMock()
+const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
+const iamTopicMock = getIamMock()
+const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
-const baseOptions = {
+
+const options: ISubscriptionOptions = {
   ackDeadline: 10,
   flowControl: {
     allowExcessMessages: false,
@@ -25,21 +34,17 @@ const baseOptions = {
     timeout: 50
   }
 }
-const initializationOptions = {
-  deadLetterPolicy: {
-    maxDeliveryAttempts: 11
-  }
-}
-const options = {
-  ...baseOptions,
-  ...initializationOptions
-}
 
 describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber(topic, subscription, clientMock as any, options)
+    subscriber = new Subscriber(
+      topicName,
+      subscriptionName,
+      clientMock as any,
+      options
+    )
   })
 
   afterEach(() => {
@@ -52,6 +57,8 @@ describe('Subscriber', () => {
     subscriptionMock.create.mockReset()
     traceMock.getTraceContextName.mockReset()
     traceMock.start.mockReset()
+    iamTopicMock.setPolicy.mockReset()
+    iamSubscriptionMock.setPolicy.mockReset()
   })
 
   describe('initialize', () => {
@@ -61,8 +68,8 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(topicMock.create).toHaveBeenCalled()
-      expect(clientMock.topic).toHaveBeenCalledWith(topic)
+      expect(topicMock.create).toHaveBeenCalledTimes(1)
+      expect(clientMock.topic).toHaveBeenCalledWith(topicName)
     })
 
     it('does not create topic if exists', async () => {
@@ -72,7 +79,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(topicMock.create).not.toHaveBeenCalled()
-      expect(clientMock.topic).toHaveBeenCalledWith(topic)
+      expect(clientMock.topic).toHaveBeenCalledWith(topicName)
     })
 
     it('creates subscription unless exists', async () => {
@@ -81,15 +88,10 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalledWith({
-        deadLetterPolicy: {
-          ...initializationOptions.deadLetterPolicy,
-          deadLetterTopic: subscription + '-dead-letters'
-        }
-      })
+      expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
       expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscription,
-        baseOptions
+        subscriptionName,
+        options
       )
     })
 
@@ -101,26 +103,174 @@ describe('Subscriber', () => {
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscription,
-        baseOptions
+        subscriptionName,
+        options
       )
     })
 
-    it('does not add dead letter policy when not requested', async () => {
-      topicMock.exists.mockResolvedValue([true])
-      subscriptionMock.exists.mockResolvedValue([false])
+    describe('dead letter policy', () => {
+      const deadLetterTopicName = 'subscription-name-dead-letters'
+      const deadLetterSubscriptionName =
+        'subscription-name-dead-letters-subscription'
 
-      const emptyOptions = {}
-      const optionlessSubscriber = new Subscriber(
-        topic,
-        subscription,
-        clientMock as any,
-        emptyOptions
-      )
+      const deadLetterOptions: ISubscriptionOptions = {
+        ...options,
+        deadLetterPolicy: {
+          maxDeliveryAttempts: 123
+        },
+        gcloudProject: {
+          name: 'gcloudProjectName',
+          id: 123456789
+        }
+      }
 
-      await optionlessSubscriber.initialize()
+      beforeEach(() => {
+        subscriber = new Subscriber(
+          topicName,
+          subscriptionName,
+          clientMock as any,
+          deadLetterOptions
+        )
+      })
 
-      expect(subscriptionMock.create).toHaveBeenCalledWith({})
+      describe('deadLetterTopic initialization', () => {
+        beforeEach(() => {
+          subscriptionMock.exists.mockResolvedValue([true])
+        })
+
+        it('creates deadLetterTopic unless exists', async () => {
+          topicMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(topicMock.create).toHaveBeenCalledTimes(2)
+          expect(clientMock.topic).toHaveBeenLastCalledWith(deadLetterTopicName)
+        })
+
+        it('adds publisher role to pubsub service account', async () => {
+          topicMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(iamTopicMock.setPolicy).toHaveBeenCalledWith({
+            bindings: [
+              {
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.publisher'
+              }
+            ]
+          })
+        })
+
+        it('does not create deadLetterTopic if exists', async () => {
+          topicMock.exists.mockResolvedValue([true])
+
+          await subscriber.initialize()
+
+          expect(topicMock.create).not.toHaveBeenCalled()
+          expect(clientMock.topic).toHaveBeenLastCalledWith(deadLetterTopicName)
+        })
+
+        it('does not create deadLetterTopic if not necessary', async () => {
+          topicMock.exists.mockResolvedValue([false])
+          const emptyOptions = {}
+          const optionlessSubscriber = new Subscriber(
+            topicName,
+            subscriptionName,
+            clientMock as any,
+            emptyOptions
+          )
+
+          await optionlessSubscriber.initialize()
+
+          expect(topicMock.create).toHaveBeenCalledTimes(1)
+          expect(clientMock.topic).toHaveBeenLastCalledWith(topicName)
+          expect(iamTopicMock.setPolicy).not.toHaveBeenCalled()
+        })
+      })
+
+      describe('deadLetterSubscription initialization', () => {
+        beforeEach(() => {
+          topicMock.exists.mockResolvedValue([true])
+        })
+
+        it('creates deadLetterSubscription unless exists', async () => {
+          subscriptionMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(subscriptionMock.create).toHaveBeenCalledTimes(2)
+          expect(subscriptionMock.create).toHaveBeenLastCalledWith(undefined)
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(
+            deadLetterSubscriptionName
+          )
+        })
+
+        it('adds subscriber role to pubsub service account', async () => {
+          subscriptionMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(iamSubscriptionMock.setPolicy).toHaveBeenCalledWith({
+            bindings: [
+              {
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.subscriber'
+              }
+            ]
+          })
+        })
+
+        it('does not create deadLetterSubscription if exists', async () => {
+          subscriptionMock.exists.mockResolvedValue([true])
+
+          await subscriber.initialize()
+
+          expect(subscriptionMock.create).not.toHaveBeenCalled()
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(
+            deadLetterSubscriptionName
+          )
+        })
+
+        it('does not create deadLetterSubscription if not necessary', async () => {
+          subscriptionMock.exists.mockResolvedValue([false])
+          const emptyOptions = {}
+          const optionlessSubscriber = new Subscriber(
+            topicName,
+            subscriptionName,
+            clientMock as any,
+            emptyOptions
+          )
+
+          await optionlessSubscriber.initialize()
+
+          expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
+          expect(subscriptionMock.create).toHaveBeenCalledWith(undefined)
+          expect(topicMock.subscription).not.toHaveBeenCalledWith(
+            deadLetterSubscriptionName,
+            expect.anything()
+          )
+          expect(iamSubscriptionMock.setPolicy).not.toHaveBeenCalled()
+        })
+
+        it('creates subscription with deadLetterTopic reference', async () => {
+          subscriptionMock.exists.mockResolvedValue([false])
+
+          await subscriber.initialize()
+
+          expect(subscriptionMock.create).toHaveBeenCalledWith({
+            deadLetterPolicy: {
+              maxDeliveryAttempts: 123,
+              deadLetterTopic:
+                'projects/gcloudProjectName/topics/subscription-name-dead-letters'
+            }
+          })
+        })
+      })
     })
   })
 

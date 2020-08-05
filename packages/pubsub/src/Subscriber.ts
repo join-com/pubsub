@@ -41,7 +41,7 @@ export class Subscriber<T = unknown> {
     readonly topicName: string,
     readonly subscriptionName: string,
     pubsubClient: PubSub,
-    private options: ISubscriptionOptions = {}
+    private readonly options: ISubscriptionOptions = {}
   ) {
     this.topic = pubsubClient.topic(topicName)
     this.subscription = this.topic.subscription(

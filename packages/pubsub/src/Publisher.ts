@@ -2,7 +2,7 @@ import { PubSub, Topic } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
 
-export class Publisher<T = undefined> {
+export class Publisher<T = unknown> {
   private topic: Topic
 
   constructor(readonly topicName: string, client: PubSub) {

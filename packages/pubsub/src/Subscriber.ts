@@ -5,7 +5,7 @@ import {
   Subscription,
   Topic,
   PubSub,
-  SubscriptionOptions,
+  SubscriptionOptions
 } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
@@ -90,7 +90,7 @@ export class Subscriber<T = unknown> {
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime,
-      received: message.received,
+      received: message.received
     }
 
     logger.info(
@@ -130,7 +130,7 @@ export class Subscriber<T = unknown> {
     this.subscription.open()
     logger.info('Reopened subscription after error', {
       error,
-      name: this.subscription.name,
+      name: this.subscription.name
     })
   }
 
@@ -199,9 +199,9 @@ export class Subscriber<T = unknown> {
       bindings: [
         {
           members: [pubsubServiceAccount],
-          role,
-        },
-      ],
+          role
+        }
+      ]
     })
   }
 
@@ -219,8 +219,8 @@ export class Subscriber<T = unknown> {
     return {
       deadLetterPolicy: {
         maxDeliveryAttempts: this.options.maxDeliveryAttempts,
-        deadLetterTopic,
-      },
+        deadLetterTopic
+      }
     }
   }
 
@@ -231,11 +231,11 @@ export class Subscriber<T = unknown> {
       ackDeadline: options?.ackDeadline,
       flowControl: {
         allowExcessMessages: options?.allowExcessMessages,
-        maxMessages: options?.maxMessages,
+        maxMessages: options?.maxMessages
       },
       streamingOptions: {
-        maxStreams: options?.maxStreams,
-      },
+        maxStreams: options?.maxStreams
+      }
     }
   }
 }

@@ -2,7 +2,7 @@ import * as traceMock from '../../__mocks__/@join-com/node-trace'
 import {
   IParsedMessage,
   ISubscriptionOptions,
-  Subscriber,
+  Subscriber
 } from '../../src/Subscriber'
 import {
   getClientMock,
@@ -10,7 +10,7 @@ import {
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  MessageMock,
+  MessageMock
 } from '../support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -25,7 +25,7 @@ const options: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
   maxMessages: 5,
-  maxStreams: 1,
+  maxStreams: 1
 }
 
 describe('Subscriber', () => {
@@ -86,11 +86,11 @@ describe('Subscriber', () => {
         ackDeadline: options.ackDeadline,
         flowControl: {
           allowExcessMessages: options.allowExcessMessages,
-          maxMessages: options.maxMessages,
+          maxMessages: options.maxMessages
         },
         streamingOptions: {
-          maxStreams: options.maxStreams,
-        },
+          maxStreams: options.maxStreams
+        }
       })
     })
 
@@ -113,8 +113,8 @@ describe('Subscriber', () => {
         maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
-          id: 123456789,
-        },
+          id: 123456789
+        }
       }
 
       beforeEach(() => {
@@ -149,11 +149,11 @@ describe('Subscriber', () => {
             bindings: [
               {
                 members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com',
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
                 ],
-                role: 'roles/pubsub.publisher',
-              },
-            ],
+                role: 'roles/pubsub.publisher'
+              }
+            ]
           })
         })
 
@@ -210,11 +210,11 @@ describe('Subscriber', () => {
             bindings: [
               {
                 members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com',
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
                 ],
-                role: 'roles/pubsub.subscriber',
-              },
-            ],
+                role: 'roles/pubsub.subscriber'
+              }
+            ]
           })
         })
 
@@ -259,8 +259,8 @@ describe('Subscriber', () => {
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
-                'projects/gcloudProjectName/topics/subscription-name-dead-letters',
-            },
+                'projects/gcloudProjectName/topics/subscription-name-dead-letters'
+            }
           })
         })
       })
@@ -282,7 +282,7 @@ describe('Subscriber', () => {
 
     it('receives parsed data', async () => {
       let parsedMessage: IParsedMessage<unknown>
-      subscriber.start(async (msg) => {
+      subscriber.start(async msg => {
         parsedMessage = msg
       })
 

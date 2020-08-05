@@ -2,7 +2,7 @@ import { PubSub, Topic } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
 
-export class Publisher<T = unknown> {
+export class Publisher<T = undefined> {
   private topic: Topic
 
   constructor(readonly topicName: string, client: PubSub) {
@@ -18,16 +18,13 @@ export class Publisher<T = unknown> {
     }
   }
 
-  public async publishMsg(data: T): Promise<void> {
+  public async publishMsg(message: T): Promise<void> {
     const attributes = this.getAttributes()
-    const message = !Array.isArray(data)
-      ? Object.assign({}, data, attributes) // For backward compatibility. Attributes assignment should be removed after all pubsub subscribers migrated
-      : data
-    const messageId = await this.topic.publishJSON(message, attributes)
+    const messageId = await this.topic.publishJSON(message as any, attributes)
 
     logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
-      data,
-      messageId
+      message,
+      messageId,
     })
   }
 

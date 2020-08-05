@@ -2,7 +2,7 @@ import * as traceMock from '../../__mocks__/@join-com/node-trace'
 import {
   IParsedMessage,
   ISubscriptionOptions,
-  Subscriber
+  Subscriber,
 } from '../../src/Subscriber'
 import {
   getClientMock,
@@ -10,7 +10,7 @@ import {
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  MessageMock
+  MessageMock,
 } from '../support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -21,18 +21,11 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
-
 const options: ISubscriptionOptions = {
   ackDeadline: 10,
-  flowControl: {
-    allowExcessMessages: false,
-    maxMessages: 20
-  },
-  streamingOptions: {
-    highWaterMark: 30,
-    maxStreams: 40,
-    timeout: 50
-  }
+  allowExcessMessages: true,
+  maxMessages: 5,
+  maxStreams: 1,
 }
 
 describe('Subscriber', () => {
@@ -88,11 +81,17 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
-      expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscriptionName,
-        options
-      )
+      expect(subscriptionMock.create).toHaveBeenCalled()
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
+        ackDeadline: options.ackDeadline,
+        flowControl: {
+          allowExcessMessages: options.allowExcessMessages,
+          maxMessages: options.maxMessages,
+        },
+        streamingOptions: {
+          maxStreams: options.maxStreams,
+        },
+      })
     })
 
     it('does not create subscription if exists', async () => {
@@ -102,10 +101,6 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscriptionName,
-        options
-      )
     })
 
     describe('dead letter policy', () => {
@@ -115,13 +110,11 @@ describe('Subscriber', () => {
 
       const deadLetterOptions: ISubscriptionOptions = {
         ...options,
-        deadLetterPolicy: {
-          maxDeliveryAttempts: 123
-        },
+        maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
-          id: 123456789
-        }
+          id: 123456789,
+        },
       }
 
       beforeEach(() => {
@@ -156,11 +149,11 @@ describe('Subscriber', () => {
             bindings: [
               {
                 members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com',
                 ],
-                role: 'roles/pubsub.publisher'
-              }
-            ]
+                role: 'roles/pubsub.publisher',
+              },
+            ],
           })
         })
 
@@ -217,11 +210,11 @@ describe('Subscriber', () => {
             bindings: [
               {
                 members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com',
                 ],
-                role: 'roles/pubsub.subscriber'
-              }
-            ]
+                role: 'roles/pubsub.subscriber',
+              },
+            ],
           })
         })
 
@@ -266,8 +259,8 @@ describe('Subscriber', () => {
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
-                'projects/gcloudProjectName/topics/subscription-name-dead-letters'
-            }
+                'projects/gcloudProjectName/topics/subscription-name-dead-letters',
+            },
           })
         })
       })
@@ -289,7 +282,7 @@ describe('Subscriber', () => {
 
     it('receives parsed data', async () => {
       let parsedMessage: IParsedMessage<unknown>
-      subscriber.start(async msg => {
+      subscriber.start(async (msg) => {
         parsedMessage = msg
       })
 

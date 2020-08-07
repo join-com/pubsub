@@ -56,15 +56,9 @@ describe('Publisher', () => {
     it('publishes json object with trace info', async () => {
       await publisher.publishMsg(message)
 
-      expect(topicMock.publishJSON).toHaveBeenCalledWith(
-        {
-          [traceContextName]: traceContext,
-          ...message
-        },
-        {
-          [traceContextName]: traceContext
-        }
-      )
+      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, {
+        [traceContextName]: traceContext
+      })
     })
 
     it('publishes json array', async () => {

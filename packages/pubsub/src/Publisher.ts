@@ -18,15 +18,12 @@ export class Publisher<T = unknown> {
     }
   }
 
-  public async publishMsg(data: T): Promise<void> {
+  public async publishMsg(message: T): Promise<void> {
     const attributes = this.getAttributes()
-    const message = !Array.isArray(data)
-      ? Object.assign({}, data, attributes) // For backward compatibility. Attributes assignment should be removed after all pubsub subscribers migrated
-      : data
-    const messageId = await this.topic.publishJSON(message, attributes)
+    const messageId = await this.topic.publishJSON(message as any, attributes)
 
     logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
-      data,
+      message,
       messageId
     })
   }

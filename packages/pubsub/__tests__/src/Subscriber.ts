@@ -21,18 +21,11 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
-
 const options: ISubscriptionOptions = {
   ackDeadline: 10,
-  flowControl: {
-    allowExcessMessages: false,
-    maxMessages: 20
-  },
-  streamingOptions: {
-    highWaterMark: 30,
-    maxStreams: 40,
-    timeout: 50
-  }
+  allowExcessMessages: true,
+  maxMessages: 5,
+  maxStreams: 1
 }
 
 describe('Subscriber', () => {
@@ -88,11 +81,17 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
-      expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscriptionName,
-        options
-      )
+      expect(subscriptionMock.create).toHaveBeenCalled()
+      expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
+        ackDeadline: options.ackDeadline,
+        flowControl: {
+          allowExcessMessages: options.allowExcessMessages,
+          maxMessages: options.maxMessages
+        },
+        streamingOptions: {
+          maxStreams: options.maxStreams
+        }
+      })
     })
 
     it('does not create subscription if exists', async () => {
@@ -102,10 +101,6 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
-      expect(topicMock.subscription).toHaveBeenCalledWith(
-        subscriptionName,
-        options
-      )
     })
 
     describe('dead letter policy', () => {
@@ -115,9 +110,7 @@ describe('Subscriber', () => {
 
       const deadLetterOptions: ISubscriptionOptions = {
         ...options,
-        deadLetterPolicy: {
-          maxDeliveryAttempts: 123
-        },
+        maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
           id: 123456789

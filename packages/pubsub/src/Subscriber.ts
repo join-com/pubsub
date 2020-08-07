@@ -2,14 +2,14 @@ import {
   CreateSubscriptionOptions,
   IAM,
   Message,
-  PubSub,
   Subscription,
-  Topic
+  Topic,
+  PubSub,
+  SubscriptionOptions
 } from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
-import { DefaultTaskExecutor, ITaskExecutor } from './DefaultTaskExecutor'
 
 export interface IParsedMessage<T = unknown> extends Message {
   dataParsed: T
@@ -17,18 +17,10 @@ export interface IParsedMessage<T = unknown> extends Message {
 
 export interface ISubscriptionOptions {
   ackDeadline?: number
-  flowControl?: {
-    allowExcessMessages?: boolean
-    maxMessages?: number
-  }
-  streamingOptions?: {
-    highWaterMark?: number
-    maxStreams?: number
-    timeout?: number
-  }
-  deadLetterPolicy?: {
-    maxDeliveryAttempts?: number
-  }
+  allowExcessMessages?: boolean
+  maxMessages?: number
+  maxStreams?: number
+  maxDeliveryAttempts?: number
   // TODO validate gcloudProject is given when isDeadLetterPolicyEnabled?
   gcloudProject?: {
     name: string
@@ -49,13 +41,12 @@ export class Subscriber<T = unknown> {
     readonly topicName: string,
     readonly subscriptionName: string,
     pubsubClient: PubSub,
-    private readonly options: ISubscriptionOptions = {},
-    private readonly taskExecutor: ITaskExecutor = new DefaultTaskExecutor()
+    private readonly options: ISubscriptionOptions = {}
   ) {
     this.topic = pubsubClient.topic(topicName)
     this.subscription = this.topic.subscription(
       subscriptionName,
-      this.getBaseOptions()
+      this.getStartupOptions(options)
     )
 
     if (this.isDeadLetterPolicyEnabled()) {
@@ -123,12 +114,9 @@ export class Subscriber<T = unknown> {
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     return async (message: Message) => {
       try {
-        const processAction = () => {
-          const dataParsed = this.parseData(message)
-          const messageParsed = Object.assign(message, { dataParsed })
-          return asyncCallback(messageParsed)
-        }
-        await this.taskExecutor.execute(message.id, processAction)
+        const dataParsed = this.parseData(message)
+        const messageParsed = Object.assign(message, { dataParsed })
+        await asyncCallback(messageParsed)
       } catch (e) {
         message.nack()
         reportError(e)
@@ -217,28 +205,37 @@ export class Subscriber<T = unknown> {
     })
   }
 
-  private getBaseOptions() {
-    const { deadLetterPolicy, ...baseOptions } = this.options
-    return baseOptions
+  private isDeadLetterPolicyEnabled() {
+    return Boolean(this.options.maxDeliveryAttempts)
   }
 
-  private getInitializationOptions() {
-    const gcloudProjectName =
-      this.options.gcloudProject && this.options.gcloudProject.name
+  private getInitializationOptions(): CreateSubscriptionOptions | undefined {
+    if (!this.isDeadLetterPolicyEnabled()) {
+      return undefined
+    }
+
+    const gcloudProjectName = this.options.gcloudProject?.name
     const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
-    const options = {
+    return {
       deadLetterPolicy: {
-        ...this.options.deadLetterPolicy,
+        maxDeliveryAttempts: this.options.maxDeliveryAttempts,
         deadLetterTopic
       }
     }
-    return this.isDeadLetterPolicyEnabled() ? options : undefined
   }
 
-  private isDeadLetterPolicyEnabled() {
-    return Boolean(
-      this.options.deadLetterPolicy &&
-        this.options.deadLetterPolicy.maxDeliveryAttempts
-    )
+  private getStartupOptions(
+    options?: ISubscriptionOptions
+  ): SubscriptionOptions {
+    return {
+      ackDeadline: options?.ackDeadline,
+      flowControl: {
+        allowExcessMessages: options?.allowExcessMessages,
+        maxMessages: options?.maxMessages
+      },
+      streamingOptions: {
+        maxStreams: options?.maxStreams
+      }
+    }
   }
 }

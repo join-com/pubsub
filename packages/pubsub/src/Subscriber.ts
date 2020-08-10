@@ -128,9 +128,8 @@ export class Subscriber<T = unknown> {
     reportError(error)
     await this.subscription.close()
     this.subscription.open()
-    logger.info('Reopened subscription after error', {
-      error,
-      name: this.subscription.name
+    logger.info(`Reopened subscription ${this.subscription.name} after error`, {
+      error
     })
   }
 

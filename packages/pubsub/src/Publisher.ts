@@ -18,12 +18,12 @@ export class Publisher<T = unknown> {
     }
   }
 
-  public async publishMsg(message: T): Promise<void> {
+  public async publishMsg(data: T): Promise<void> {
     const attributes = this.getAttributes()
-    const messageId = await this.topic.publishJSON(message as any, attributes)
+    const messageId = await this.topic.publishJSON(data as any, attributes)
 
     logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
-      message,
+      data,
       messageId
     })
   }

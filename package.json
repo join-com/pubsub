@@ -21,12 +21,10 @@
   },
   "lint-staged": {
     "*.{ts}": [
-      "yarn prettier --write",
-      "git add"
+      "yarn prettier --write"
     ],
     "src/**/*.ts": [
-      "npm run lint --fix",
-      "git add"
+      "npm run lint --fix"
     ]
   },
   "keywords": [

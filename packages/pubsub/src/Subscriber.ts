@@ -178,10 +178,9 @@ export class Subscriber<T = unknown> {
     if (!exist) {
       await subscription.create(options)
       logger.info(`PubSub: Subscription ${subscriptionName} is created`)
-    }
-
-    if (options) {
+    } else if (options) {
       await subscription.setMetadata(options)
+      logger.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
     }
   }
 

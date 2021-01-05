@@ -48,6 +48,7 @@ describe('Subscriber', () => {
     topicMock.create.mockReset()
     subscriptionMock.exists.mockReset()
     subscriptionMock.create.mockReset()
+    subscriptionMock.setMetadata.mockReset()
     traceMock.getTraceContextName.mockReset()
     traceMock.start.mockReset()
     iamTopicMock.setPolicy.mockReset()
@@ -98,15 +99,23 @@ describe('Subscriber', () => {
           maxStreams: options.maxStreams
         }
       })
+
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
     })
 
-    it('does not create subscription if exists', async () => {
+    it('updates metadata if subscription exists', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        retryPolicy: {
+          minimumBackoff: { seconds: options.minBackoffSeconds },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
+      })
     })
 
     describe('dead letter policy', () => {

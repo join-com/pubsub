@@ -48,6 +48,7 @@ describe('Subscriber', () => {
     topicMock.create.mockReset()
     subscriptionMock.exists.mockReset()
     subscriptionMock.create.mockReset()
+    subscriptionMock.setMetadata.mockReset()
     traceMock.getTraceContextName.mockReset()
     traceMock.start.mockReset()
     iamTopicMock.setPolicy.mockReset()
@@ -81,7 +82,13 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalled()
+      expect(subscriptionMock.create).toHaveBeenCalledWith({
+        retryPolicy: {
+          minimumBackoff: { seconds: options.minBackoffSeconds },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
+      })
+
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
         ackDeadline: options.ackDeadline,
         flowControl: {
@@ -92,15 +99,23 @@ describe('Subscriber', () => {
           maxStreams: options.maxStreams
         }
       })
+
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
     })
 
-    it('does not create subscription if exists', async () => {
+    it('updates metadata if subscription exists', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        retryPolicy: {
+          minimumBackoff: { seconds: options.minBackoffSeconds },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
+      })
     })
 
     describe('dead letter policy', () => {
@@ -242,7 +257,12 @@ describe('Subscriber', () => {
           await optionlessSubscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
-          expect(subscriptionMock.create).toHaveBeenCalledWith(undefined)
+          expect(subscriptionMock.create).toHaveBeenCalledWith({
+            retryPolicy: {
+              minimumBackoff: { seconds: options.minBackoffSeconds },
+              maximumBackoff: { seconds: options.maxBackoffSeconds }
+            }
+          })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(
             deadLetterSubscriptionName,
             expect.anything()
@@ -256,6 +276,10 @@ describe('Subscriber', () => {
           await subscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledWith({
+            retryPolicy: {
+              minimumBackoff: { seconds: options.minBackoffSeconds },
+              maximumBackoff: { seconds: options.maxBackoffSeconds }
+            },
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
@@ -281,14 +305,14 @@ describe('Subscriber', () => {
     })
 
     it('receives parsed data', async () => {
-      let parsedMessage: IParsedMessage<unknown>
+      let parsedMessage: IParsedMessage<unknown> = undefined
       subscriber.start(async msg => {
         parsedMessage = msg
       })
 
       await subscriptionMock.receiveMessage(messageMock)
 
-      expect(parsedMessage.dataParsed).toEqual(data)
+      expect(parsedMessage?.dataParsed).toEqual(data)
       expect(traceMock.start).toHaveBeenCalledWith('trace-context')
     })
 

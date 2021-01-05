@@ -1,5 +1,4 @@
 import {
-  CreateSubscriptionOptions,
   IAM,
   Message,
   Subscription,
@@ -21,11 +20,28 @@ export interface ISubscriptionOptions {
   maxMessages?: number
   maxStreams?: number
   maxDeliveryAttempts?: number
+  minBackoffSeconds?: number
+  maxBackoffSeconds?: number
   // TODO validate gcloudProject is given when isDeadLetterPolicyEnabled?
   gcloudProject?: {
     name: string
     id: number
   }
+}
+
+interface ISubscriptionRetryPolicy {
+  minimumBackoff?: { seconds?: number }
+  maximumBackoff?: { seconds?: number }
+}
+
+interface ISubscriptionDeadLetterPolicy {
+  maxDeliveryAttempts?: number
+  deadLetterTopic: string
+}
+
+interface ISubscriptionInitializationOptions {
+  deadLetterPolicy?: ISubscriptionDeadLetterPolicy
+  retryPolicy?: ISubscriptionRetryPolicy
 }
 
 export class Subscriber<T = unknown> {
@@ -44,6 +60,8 @@ export class Subscriber<T = unknown> {
     private readonly options: ISubscriptionOptions = {}
   ) {
     this.topic = pubsubClient.topic(topicName)
+
+    pubsubClient.subscription
     this.subscription = this.topic.subscription(
       subscriptionName,
       this.getStartupOptions(options)
@@ -148,7 +166,7 @@ export class Subscriber<T = unknown> {
   private async initializeSubscription(
     subscriptionName: string,
     subscription: Subscription,
-    options?: CreateSubscriptionOptions
+    options?: ISubscriptionInitializationOptions
   ) {
     const [exist] = await subscription.exists()
     logger.info(
@@ -160,6 +178,10 @@ export class Subscriber<T = unknown> {
     if (!exist) {
       await subscription.create(options)
       logger.info(`PubSub: Subscription ${subscriptionName} is created`)
+    }
+
+    if (options) {
+      await subscription.setMetadata(options)
     }
   }
 
@@ -208,19 +230,24 @@ export class Subscriber<T = unknown> {
     return Boolean(this.options.maxDeliveryAttempts)
   }
 
-  private getInitializationOptions(): CreateSubscriptionOptions | undefined {
-    if (!this.isDeadLetterPolicyEnabled()) {
-      return undefined
+  private getInitializationOptions(): ISubscriptionInitializationOptions {
+    const options: ISubscriptionInitializationOptions = {
+      retryPolicy: {
+        minimumBackoff: { seconds: this.options.minBackoffSeconds },
+        maximumBackoff: { seconds: this.options.maxBackoffSeconds }
+      }
     }
 
-    const gcloudProjectName = this.options.gcloudProject?.name
-    const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
-    return {
-      deadLetterPolicy: {
+    if (this.isDeadLetterPolicyEnabled()) {
+      const gcloudProjectName = this.options.gcloudProject?.name
+      const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
+      options.deadLetterPolicy = {
         maxDeliveryAttempts: this.options.maxDeliveryAttempts,
         deadLetterTopic
       }
     }
+
+    return options
   }
 
   private getStartupOptions(

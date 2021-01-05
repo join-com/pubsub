@@ -16,6 +16,7 @@ export const getSubscriptionMock = ({
   return {
     exists: jest.fn(),
     create: jest.fn(),
+    setMetadata: jest.fn(),
     close: jest.fn(),
     open: jest.fn(),
     iam: iamMock,

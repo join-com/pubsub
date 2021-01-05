@@ -81,7 +81,13 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      expect(subscriptionMock.create).toHaveBeenCalled()
+      expect(subscriptionMock.create).toHaveBeenCalledWith({
+        retryPolicy: {
+          minimumBackoff: { seconds: options.minBackoffSeconds },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
+      })
+
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
         ackDeadline: options.ackDeadline,
         flowControl: {
@@ -242,7 +248,12 @@ describe('Subscriber', () => {
           await optionlessSubscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
-          expect(subscriptionMock.create).toHaveBeenCalledWith(undefined)
+          expect(subscriptionMock.create).toHaveBeenCalledWith({
+            retryPolicy: {
+              minimumBackoff: { seconds: options.minBackoffSeconds },
+              maximumBackoff: { seconds: options.maxBackoffSeconds }
+            }
+          })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(
             deadLetterSubscriptionName,
             expect.anything()
@@ -256,6 +267,10 @@ describe('Subscriber', () => {
           await subscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledWith({
+            retryPolicy: {
+              minimumBackoff: { seconds: options.minBackoffSeconds },
+              maximumBackoff: { seconds: options.maxBackoffSeconds }
+            },
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
@@ -281,14 +296,14 @@ describe('Subscriber', () => {
     })
 
     it('receives parsed data', async () => {
-      let parsedMessage: IParsedMessage<unknown>
+      let parsedMessage: IParsedMessage<unknown> = undefined
       subscriber.start(async msg => {
         parsedMessage = msg
       })
 
       await subscriptionMock.receiveMessage(messageMock)
 
-      expect(parsedMessage.dataParsed).toEqual(data)
+      expect(parsedMessage?.dataParsed).toEqual(data)
       expect(traceMock.start).toHaveBeenCalledWith('trace-context')
     })
 

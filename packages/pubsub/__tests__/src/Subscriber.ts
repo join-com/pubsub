@@ -25,7 +25,9 @@ const options: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
   maxMessages: 5,
-  maxStreams: 1
+  maxStreams: 1,
+  minBackoffSeconds: 1,
+  maxBackoffSeconds: 10
 }
 
 describe('Subscriber', () => {
@@ -115,6 +117,24 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: options.minBackoffSeconds },
           maximumBackoff: { seconds: options.maxBackoffSeconds }
         }
+      })
+    })
+
+    it('resets retry policy unless backoff values provided', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+
+      subscriber = new Subscriber(
+        topicName,
+        subscriptionName,
+        clientMock as any
+      )
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        retryPolicy: {}
       })
     })
 
@@ -258,10 +278,7 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
           expect(subscriptionMock.create).toHaveBeenCalledWith({
-            retryPolicy: {
-              minimumBackoff: { seconds: options.minBackoffSeconds },
-              maximumBackoff: { seconds: options.maxBackoffSeconds }
-            }
+            retryPolicy: {}
           })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(
             deadLetterSubscriptionName,

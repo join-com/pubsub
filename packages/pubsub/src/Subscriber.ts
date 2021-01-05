@@ -41,7 +41,7 @@ interface ISubscriptionDeadLetterPolicy {
 
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy?: ISubscriptionDeadLetterPolicy
-  retryPolicy?: ISubscriptionRetryPolicy
+  retryPolicy: ISubscriptionRetryPolicy
 }
 
 export class Subscriber<T = unknown> {
@@ -229,9 +229,18 @@ export class Subscriber<T = unknown> {
 
   private getInitializationOptions(): ISubscriptionInitializationOptions {
     const options: ISubscriptionInitializationOptions = {
-      retryPolicy: {
-        minimumBackoff: { seconds: this.options.minBackoffSeconds },
-        maximumBackoff: { seconds: this.options.maxBackoffSeconds }
+      retryPolicy: {}
+    }
+
+    if (this.options.minBackoffSeconds !== undefined) {
+      options.retryPolicy.minimumBackoff = {
+        seconds: this.options.minBackoffSeconds
+      }
+    }
+
+    if (this.options.maxBackoffSeconds !== undefined) {
+      options.retryPolicy.maximumBackoff = {
+        seconds: this.options.maxBackoffSeconds
       }
     }
 

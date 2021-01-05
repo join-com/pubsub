@@ -60,8 +60,6 @@ export class Subscriber<T = unknown> {
     private readonly options: ISubscriptionOptions = {}
   ) {
     this.topic = pubsubClient.topic(topicName)
-
-    pubsubClient.subscription
     this.subscription = this.topic.subscription(
       subscriptionName,
       this.getStartupOptions(options)

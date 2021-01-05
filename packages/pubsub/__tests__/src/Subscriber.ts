@@ -305,7 +305,7 @@ describe('Subscriber', () => {
     })
 
     it('receives parsed data', async () => {
-      let parsedMessage: IParsedMessage<unknown> = undefined
+      let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(async msg => {
         parsedMessage = msg
       })

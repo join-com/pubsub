@@ -40,7 +40,7 @@ interface ISubscriptionDeadLetterPolicy {
 }
 
 interface ISubscriptionInitializationOptions {
-  deadLetterPolicy?: ISubscriptionDeadLetterPolicy
+  deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
 }
 
@@ -66,9 +66,9 @@ export class Subscriber<T = unknown> {
     )
 
     if (this.isDeadLetterPolicyEnabled()) {
-      this.deadLetterTopicName = `${subscriptionName}-dead-letters`
+      this.deadLetterTopicName = `${subscriptionName}-unack`
       this.deadLetterTopic = pubsubClient.topic(this.deadLetterTopicName)
-      this.deadLetterSubscriptionName = `${subscriptionName}-dead-letters-subscription`
+      this.deadLetterSubscriptionName = `${subscriptionName}-unack`
       this.deadLetterSubscription = this.deadLetterTopic.subscription(
         this.deadLetterSubscriptionName
       )
@@ -229,6 +229,7 @@ export class Subscriber<T = unknown> {
 
   private getInitializationOptions(): ISubscriptionInitializationOptions {
     const options: ISubscriptionInitializationOptions = {
+      deadLetterPolicy: null,
       retryPolicy: {}
     }
 

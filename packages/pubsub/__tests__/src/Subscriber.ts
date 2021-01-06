@@ -85,6 +85,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
         retryPolicy: {
           minimumBackoff: { seconds: options.minBackoffSeconds },
           maximumBackoff: { seconds: options.maxBackoffSeconds }
@@ -113,6 +114,7 @@ describe('Subscriber', () => {
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
         retryPolicy: {
           minimumBackoff: { seconds: options.minBackoffSeconds },
           maximumBackoff: { seconds: options.maxBackoffSeconds }
@@ -134,14 +136,14 @@ describe('Subscriber', () => {
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
         retryPolicy: {}
       })
     })
 
     describe('dead letter policy', () => {
-      const deadLetterTopicName = 'subscription-name-dead-letters'
-      const deadLetterSubscriptionName =
-        'subscription-name-dead-letters-subscription'
+      const deadLetterTopicName = 'subscription-name-unack'
+      const deadLetterSubscriptionName = 'subscription-name-unack'
 
       const deadLetterOptions: ISubscriptionOptions = {
         ...options,
@@ -278,6 +280,7 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
           expect(subscriptionMock.create).toHaveBeenCalledWith({
+            deadLetterPolicy: null,
             retryPolicy: {}
           })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(
@@ -300,7 +303,7 @@ describe('Subscriber', () => {
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
-                'projects/gcloudProjectName/topics/subscription-name-dead-letters'
+                'projects/gcloudProjectName/topics/subscription-name-unack'
             }
           })
         })

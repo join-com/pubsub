@@ -106,7 +106,8 @@ export class Subscriber<T = unknown> {
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime,
-      received: message.received
+      received: message.received,
+      deliveryAttempt: message.deliveryAttempt
     }
 
     logger.info(

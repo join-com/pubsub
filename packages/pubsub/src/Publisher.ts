@@ -24,15 +24,13 @@ export class Publisher<T = unknown> {
 
     logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
       data,
-      messageId
+      messageId,
     })
   }
 
   private async initializeTopic() {
     const [exist] = await this.topic.exists()
-    logger.info(
-      `PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`
-    )
+    logger.info(`PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`)
 
     if (!exist) {
       await this.topic.create()

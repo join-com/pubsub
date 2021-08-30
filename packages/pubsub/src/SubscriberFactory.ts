@@ -11,13 +11,8 @@ export class SubscriberFactory<T> {
   public getSubscriber<K extends keyof T>(
     topic: K,
     subscription: string,
-    options?: ISubscriptionOptions
+    options?: ISubscriptionOptions,
   ): Subscriber<T[K]> {
-    return new Subscriber(
-      topic.toString(),
-      subscription,
-      this.client,
-      options ?? this.defaultOptions
-    )
+    return new Subscriber(topic.toString(), subscription, this.client, options ?? this.defaultOptions)
   }
 }

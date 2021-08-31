@@ -2,14 +2,16 @@ type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
 export const getIamMock = () => ({
-  setPolicy: jest.fn(),
+  setPolicy: jest.fn()
 })
 
 export interface SubscriptionMockOption {
   iamMock?: ReturnType<typeof getIamMock>
 }
 
-export const getSubscriptionMock = ({ iamMock }: SubscriptionMockOption = {}) => {
+export const getSubscriptionMock = ({
+  iamMock
+}: SubscriptionMockOption = {}) => {
   const eventHandlers: EventHandlerMap = {}
   return {
     exists: jest.fn(),
@@ -39,7 +41,7 @@ export const getSubscriptionMock = ({ iamMock }: SubscriptionMockOption = {}) =>
         // undefined means no error when closing subscriber
         await handler(undefined)
       }
-    },
+    }
   }
 }
 
@@ -48,12 +50,15 @@ export interface TopicMockOption {
   iamMock?: ReturnType<typeof getIamMock>
 }
 
-export const getTopicMock = ({ subscriptionMock, iamMock }: TopicMockOption = {}) => ({
+export const getTopicMock = ({
+  subscriptionMock,
+  iamMock
+}: TopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
   publishJSON: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
-  iam: iamMock,
+  iam: iamMock
 })
 
 export interface ClientMockOption {
@@ -61,7 +66,7 @@ export interface ClientMockOption {
 }
 
 export const getClientMock = ({ topicMock }: ClientMockOption = {}) => ({
-  topic: jest.fn(() => topicMock),
+  topic: jest.fn(() => topicMock)
 })
 
 export interface MessageMock {
@@ -77,6 +82,6 @@ export const getMessageMock = (data: any, attributes: {} = {}): MessageMock => {
     data: buffer,
     attributes,
     ack: jest.fn(),
-    nack: jest.fn(),
+    nack: jest.fn()
   }
 }

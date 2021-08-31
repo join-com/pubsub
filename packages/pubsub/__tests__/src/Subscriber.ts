@@ -1,12 +1,16 @@
 import * as traceMock from '../../__mocks__/@join-com/node-trace'
-import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../../src/Subscriber'
+import {
+  IParsedMessage,
+  ISubscriptionOptions,
+  Subscriber
+} from '../../src/Subscriber'
 import {
   getClientMock,
   getIamMock,
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  MessageMock,
+  MessageMock
 } from '../support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -23,14 +27,19 @@ const options: ISubscriptionOptions = {
   maxMessages: 5,
   maxStreams: 1,
   minBackoffSeconds: 1,
-  maxBackoffSeconds: 10,
+  maxBackoffSeconds: 10
 }
 
 describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber(topicName, subscriptionName, clientMock as any, options)
+    subscriber = new Subscriber(
+      topicName,
+      subscriptionName,
+      clientMock as any,
+      options
+    )
   })
 
   afterEach(() => {
@@ -79,19 +88,19 @@ describe('Subscriber', () => {
         deadLetterPolicy: null,
         retryPolicy: {
           minimumBackoff: { seconds: options.minBackoffSeconds },
-          maximumBackoff: { seconds: options.maxBackoffSeconds },
-        },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
       })
 
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
         ackDeadline: options.ackDeadline,
         flowControl: {
           allowExcessMessages: options.allowExcessMessages,
-          maxMessages: options.maxMessages,
+          maxMessages: options.maxMessages
         },
         streamingOptions: {
-          maxStreams: options.maxStreams,
-        },
+          maxStreams: options.maxStreams
+        }
       })
 
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
@@ -108,8 +117,8 @@ describe('Subscriber', () => {
         deadLetterPolicy: null,
         retryPolicy: {
           minimumBackoff: { seconds: options.minBackoffSeconds },
-          maximumBackoff: { seconds: options.maxBackoffSeconds },
-        },
+          maximumBackoff: { seconds: options.maxBackoffSeconds }
+        }
       })
     })
 
@@ -117,14 +126,18 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
-      subscriber = new Subscriber(topicName, subscriptionName, clientMock as any)
+      subscriber = new Subscriber(
+        topicName,
+        subscriptionName,
+        clientMock as any
+      )
 
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
         deadLetterPolicy: null,
-        retryPolicy: {},
+        retryPolicy: {}
       })
     })
 
@@ -137,12 +150,17 @@ describe('Subscriber', () => {
         maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
-          id: 123456789,
-        },
+          id: 123456789
+        }
       }
 
       beforeEach(() => {
-        subscriber = new Subscriber(topicName, subscriptionName, clientMock as any, deadLetterOptions)
+        subscriber = new Subscriber(
+          topicName,
+          subscriptionName,
+          clientMock as any,
+          deadLetterOptions
+        )
       })
 
       describe('deadLetterTopic initialization', () => {
@@ -167,10 +185,12 @@ describe('Subscriber', () => {
           expect(iamTopicMock.setPolicy).toHaveBeenCalledWith({
             bindings: [
               {
-                members: ['serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'],
-                role: 'roles/pubsub.publisher',
-              },
-            ],
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.publisher'
+              }
+            ]
           })
         })
 
@@ -186,7 +206,12 @@ describe('Subscriber', () => {
         it('does not create deadLetterTopic if not necessary', async () => {
           topicMock.exists.mockResolvedValue([false])
           const emptyOptions = {}
-          const optionlessSubscriber = new Subscriber(topicName, subscriptionName, clientMock as any, emptyOptions)
+          const optionlessSubscriber = new Subscriber(
+            topicName,
+            subscriptionName,
+            clientMock as any,
+            emptyOptions
+          )
 
           await optionlessSubscriber.initialize()
 
@@ -208,7 +233,9 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(2)
           expect(subscriptionMock.create).toHaveBeenLastCalledWith(undefined)
-          expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(
+            deadLetterSubscriptionName
+          )
         })
 
         it('adds subscriber role to pubsub service account', async () => {
@@ -219,10 +246,12 @@ describe('Subscriber', () => {
           expect(iamSubscriptionMock.setPolicy).toHaveBeenCalledWith({
             bindings: [
               {
-                members: ['serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'],
-                role: 'roles/pubsub.subscriber',
-              },
-            ],
+                members: [
+                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
+                ],
+                role: 'roles/pubsub.subscriber'
+              }
+            ]
           })
         })
 
@@ -232,22 +261,32 @@ describe('Subscriber', () => {
           await subscriber.initialize()
 
           expect(subscriptionMock.create).not.toHaveBeenCalled()
-          expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(
+            deadLetterSubscriptionName
+          )
         })
 
         it('does not create deadLetterSubscription if not necessary', async () => {
           subscriptionMock.exists.mockResolvedValue([false])
           const emptyOptions = {}
-          const optionlessSubscriber = new Subscriber(topicName, subscriptionName, clientMock as any, emptyOptions)
+          const optionlessSubscriber = new Subscriber(
+            topicName,
+            subscriptionName,
+            clientMock as any,
+            emptyOptions
+          )
 
           await optionlessSubscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
           expect(subscriptionMock.create).toHaveBeenCalledWith({
             deadLetterPolicy: null,
-            retryPolicy: {},
+            retryPolicy: {}
           })
-          expect(topicMock.subscription).not.toHaveBeenCalledWith(deadLetterSubscriptionName, expect.anything())
+          expect(topicMock.subscription).not.toHaveBeenCalledWith(
+            deadLetterSubscriptionName,
+            expect.anything()
+          )
           expect(iamSubscriptionMock.setPolicy).not.toHaveBeenCalled()
         })
 
@@ -259,12 +298,13 @@ describe('Subscriber', () => {
           expect(subscriptionMock.create).toHaveBeenCalledWith({
             retryPolicy: {
               minimumBackoff: { seconds: options.minBackoffSeconds },
-              maximumBackoff: { seconds: options.maxBackoffSeconds },
+              maximumBackoff: { seconds: options.maxBackoffSeconds }
             },
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
-              deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
-            },
+              deadLetterTopic:
+                'projects/gcloudProjectName/topics/subscription-name-unack'
+            }
           })
         })
       })

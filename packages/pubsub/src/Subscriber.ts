@@ -1,4 +1,11 @@
-import { IAM, Message, Subscription, Topic, PubSub, SubscriptionOptions } from '@google-cloud/pubsub'
+import {
+  IAM,
+  Message,
+  Subscription,
+  Topic,
+  PubSub,
+  SubscriptionOptions
+} from '@google-cloud/pubsub'
 import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
@@ -50,16 +57,21 @@ export class Subscriber<T = unknown> {
     readonly topicName: string,
     readonly subscriptionName: string,
     pubsubClient: PubSub,
-    private readonly options: ISubscriptionOptions = {},
+    private readonly options: ISubscriptionOptions = {}
   ) {
     this.topic = pubsubClient.topic(topicName)
-    this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(options))
+    this.subscription = this.topic.subscription(
+      subscriptionName,
+      this.getStartupOptions(options)
+    )
 
     if (this.isDeadLetterPolicyEnabled()) {
       this.deadLetterTopicName = `${subscriptionName}-unack`
       this.deadLetterTopic = pubsubClient.topic(this.deadLetterTopicName)
       this.deadLetterSubscriptionName = `${subscriptionName}-unack`
-      this.deadLetterSubscription = this.deadLetterTopic.subscription(this.deadLetterSubscriptionName)
+      this.deadLetterSubscription = this.deadLetterTopic.subscription(
+        this.deadLetterSubscriptionName
+      )
     }
   }
 
@@ -68,7 +80,11 @@ export class Subscriber<T = unknown> {
       await this.initializeTopic(this.topicName, this.topic)
       await this.initializeDeadLetterTopic()
 
-      await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
+      await this.initializeSubscription(
+        this.subscriptionName,
+        this.subscription,
+        this.getInitializationOptions()
+      )
       await this.initializeDeadLetterSubscription()
     } catch (e) {
       reportError(e)
@@ -79,7 +95,9 @@ export class Subscriber<T = unknown> {
   public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     this.subscription.on('error', this.processError)
     this.subscription.on('message', this.processMsg(asyncCallback))
-    logger.info(`PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`)
+    logger.info(
+      `PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`
+    )
   }
 
   private logMessage(message: Message, dataParsed: T) {
@@ -89,12 +107,12 @@ export class Subscriber<T = unknown> {
       attributes: message.attributes,
       publishTime: message.publishTime,
       received: message.received,
-      deliveryAttempt: message.deliveryAttempt,
+      deliveryAttempt: message.deliveryAttempt
     }
 
     logger.info(
       `PubSub: Got message on topic: ${this.topicName} with subscription: ${this.subscriptionName} with data:`,
-      { filteredMessage, dataParsed },
+      { filteredMessage, dataParsed }
     )
   }
 
@@ -128,13 +146,15 @@ export class Subscriber<T = unknown> {
     await this.subscription.close()
     this.subscription.open()
     logger.info(`Reopened subscription ${this.subscription.name} after error`, {
-      error,
+      error
     })
   }
 
   private async initializeTopic(topicName: string, topic: Topic) {
     const [exist] = await topic.exists()
-    logger.info(`PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`)
+    logger.info(
+      `PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`
+    )
 
     if (!exist) {
       await topic.create()
@@ -145,10 +165,14 @@ export class Subscriber<T = unknown> {
   private async initializeSubscription(
     subscriptionName: string,
     subscription: Subscription,
-    options?: ISubscriptionInitializationOptions,
+    options?: ISubscriptionInitializationOptions
   ) {
     const [exist] = await subscription.exists()
-    logger.info(`PubSub: Subscription ${subscriptionName} ${exist ? 'exists' : 'does not exist'}`)
+    logger.info(
+      `PubSub: Subscription ${subscriptionName} ${
+        exist ? 'exists' : 'does not exist'
+      }`
+    )
 
     if (!exist) {
       await subscription.create(options)
@@ -162,28 +186,41 @@ export class Subscriber<T = unknown> {
   private async initializeDeadLetterTopic() {
     if (this.deadLetterTopicName && this.deadLetterTopic) {
       await this.initializeTopic(this.deadLetterTopicName, this.deadLetterTopic)
-      await this.addPubsubServiceAccountRole(this.deadLetterTopic.iam, 'roles/pubsub.publisher')
+      await this.addPubsubServiceAccountRole(
+        this.deadLetterTopic.iam,
+        'roles/pubsub.publisher'
+      )
     }
   }
 
   private async initializeDeadLetterSubscription() {
     if (this.deadLetterSubscriptionName && this.deadLetterSubscription) {
-      await this.initializeSubscription(this.deadLetterSubscriptionName, this.deadLetterSubscription)
-      await this.addPubsubServiceAccountRole(this.subscription.iam, 'roles/pubsub.subscriber')
+      await this.initializeSubscription(
+        this.deadLetterSubscriptionName,
+        this.deadLetterSubscription
+      )
+      await this.addPubsubServiceAccountRole(
+        this.subscription.iam,
+        'roles/pubsub.subscriber'
+      )
     }
   }
 
-  private async addPubsubServiceAccountRole(iam: IAM, role: 'roles/pubsub.subscriber' | 'roles/pubsub.publisher') {
-    const gcloudProjectId = this.options.gcloudProject && this.options.gcloudProject.id
+  private async addPubsubServiceAccountRole(
+    iam: IAM,
+    role: 'roles/pubsub.subscriber' | 'roles/pubsub.publisher'
+  ) {
+    const gcloudProjectId =
+      this.options.gcloudProject && this.options.gcloudProject.id
     const pubsubServiceAccount = `serviceAccount:service-${gcloudProjectId}@gcp-sa-pubsub.iam.gserviceaccount.com`
 
     await iam.setPolicy({
       bindings: [
         {
           members: [pubsubServiceAccount],
-          role,
-        },
-      ],
+          role
+        }
+      ]
     })
   }
 
@@ -194,18 +231,18 @@ export class Subscriber<T = unknown> {
   private getInitializationOptions(): ISubscriptionInitializationOptions {
     const options: ISubscriptionInitializationOptions = {
       deadLetterPolicy: null,
-      retryPolicy: {},
+      retryPolicy: {}
     }
 
     if (this.options.minBackoffSeconds !== undefined) {
       options.retryPolicy.minimumBackoff = {
-        seconds: this.options.minBackoffSeconds,
+        seconds: this.options.minBackoffSeconds
       }
     }
 
     if (this.options.maxBackoffSeconds !== undefined) {
       options.retryPolicy.maximumBackoff = {
-        seconds: this.options.maxBackoffSeconds,
+        seconds: this.options.maxBackoffSeconds
       }
     }
 
@@ -214,23 +251,25 @@ export class Subscriber<T = unknown> {
       const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
       options.deadLetterPolicy = {
         maxDeliveryAttempts: this.options.maxDeliveryAttempts,
-        deadLetterTopic,
+        deadLetterTopic
       }
     }
 
     return options
   }
 
-  private getStartupOptions(options?: ISubscriptionOptions): SubscriptionOptions {
+  private getStartupOptions(
+    options?: ISubscriptionOptions
+  ): SubscriptionOptions {
     return {
       ackDeadline: options?.ackDeadline,
       flowControl: {
         allowExcessMessages: options?.allowExcessMessages,
-        maxMessages: options?.maxMessages,
+        maxMessages: options?.maxMessages
       },
       streamingOptions: {
-        maxStreams: options?.maxStreams,
-      },
+        maxStreams: options?.maxStreams
+      }
     }
   }
 }

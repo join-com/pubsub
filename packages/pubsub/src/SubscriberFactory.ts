@@ -1,5 +1,12 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { ISubscriptionOptions, Subscriber } from './Subscriber'
+import { ISubscriptionOptions, Subscriber, IParsedMessage } from './Subscriber'
+
+export interface ISubscriber<T> {
+  topicName: string
+  subscriptionName: string
+  initialize: () => Promise<void>
+  start: (asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) => void
+}
 
 export class SubscriberFactory<T> {
   private readonly client: PubSub
@@ -12,7 +19,7 @@ export class SubscriberFactory<T> {
     topic: K,
     subscription: string,
     options?: ISubscriptionOptions
-  ): Subscriber<T[K]> {
+  ): ISubscriber<T[K]> {
     return new Subscriber(
       topic.toString(),
       subscription,

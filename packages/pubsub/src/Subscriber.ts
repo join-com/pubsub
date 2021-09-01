@@ -10,8 +10,10 @@ import { logger, reportError } from '@join-com/gcloud-logger-trace'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
 
-export interface IParsedMessage<T = unknown> extends Message {
+export interface IParsedMessage<T = unknown> {
   dataParsed: T
+  ack: () => void
+  nack: () => void
 }
 
 export interface ISubscriptionOptions {

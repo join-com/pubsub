@@ -1,7 +1,7 @@
-import { Subscriber } from './Subscriber'
+import { ISubscriber } from './SubscriberFactory'
 
 export abstract class MessageHandler<T = unknown> {
-  protected constructor(private readonly subscriber: Subscriber<T>) {}
+  protected constructor(private readonly subscriber: ISubscriber<T>) {}
 
   protected abstract handle(event: T): Promise<void>
 

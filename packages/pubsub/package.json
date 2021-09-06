@@ -1,6 +1,6 @@
 {
   "name": "@join-com/pubsub",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0",
   "description": "Google Cloud PubSub wrapper",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",

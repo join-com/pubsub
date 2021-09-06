@@ -1,10 +1,20 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { Publisher } from './Publisher'
 
-export class PublisherFactory {
-  constructor(private client: PubSub = new PubSub()) {}
+export interface IPublisher<T> {
+  topicName: string
+  initialize: () => Promise<void>
+  publishMsg: (data: T) => Promise<void>
+}
 
-  public getPublisher<T>(topicName: string): Publisher<T> {
-    return new Publisher(topicName, this.client)
+export class PublisherFactory<T> {
+  private readonly client: PubSub
+
+  constructor() {
+    this.client = new PubSub()
+  }
+
+  public getPublisher<K extends keyof T>(topic: K): IPublisher<T[K]> {
+    return new Publisher(topic.toString(), this.client)
   }
 }

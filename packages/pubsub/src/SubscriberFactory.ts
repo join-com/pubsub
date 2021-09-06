@@ -1,37 +1,30 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { ISubscriptionOptions, Subscriber } from './Subscriber'
+import { ISubscriptionOptions, Subscriber, IParsedMessage } from './Subscriber'
 
-export { ISubscriptionOptions } from './Subscriber'
+export interface ISubscriber<T> {
+  topicName: string
+  subscriptionName: string
+  initialize: () => Promise<void>
+  start: (asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) => void
+}
 
-export type SubscriberInitializer<T> = (
-  subscriptionName: string,
-  options?: ISubscriptionOptions
-) => Subscriber<T>
+export class SubscriberFactory<T> {
+  private readonly client: PubSub
 
-export class SubscriberFactory {
-  constructor(
-    readonly options?: ISubscriptionOptions,
-    readonly client: PubSub = new PubSub()
-  ) {}
-
-  public getSubscription<T>(
-    topicName: string,
-    subscriptionName: string,
-    options?: ISubscriptionOptions
-  ): Subscriber<T> {
-    return new Subscriber(
-      topicName,
-      subscriptionName,
-      this.client,
-      options || this.options
-    )
+  constructor(private readonly defaultOptions: ISubscriptionOptions) {
+    this.client = new PubSub()
   }
 
-  protected getSubscriberInitializer<T>(
-    topicName: string
-  ): SubscriberInitializer<T> {
-    return (subscriptionName: string, options?: ISubscriptionOptions) => {
-      return this.getSubscription(topicName, subscriptionName, options)
-    }
+  public getSubscriber<K extends keyof T>(
+    topic: K,
+    subscription: string,
+    options?: ISubscriptionOptions
+  ): ISubscriber<T[K]> {
+    return new Subscriber(
+      topic.toString(),
+      subscription,
+      this.client,
+      options ?? this.defaultOptions
+    )
   }
 }

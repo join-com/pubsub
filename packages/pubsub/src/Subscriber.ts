@@ -6,7 +6,8 @@ import {
   PubSub,
   SubscriptionOptions
 } from '@google-cloud/pubsub'
-import { logger, reportError } from '@join-com/gcloud-logger-trace'
+import { logger } from '@join-com/gcloud-logger-trace'
+import { reportError } from './reportError'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
 

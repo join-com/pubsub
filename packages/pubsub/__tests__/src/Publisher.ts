@@ -75,7 +75,7 @@ describe('Publisher', () => {
 
       await publisher.publishMsg({ id: 1 })
 
-      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, undefined)
+      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, {})
     })
   })
 })

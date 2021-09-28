@@ -1,4 +1,4 @@
-import { PubSub, Topic } from '@google-cloud/pubsub'
+import { Attributes, PubSub, Topic } from '@google-cloud/pubsub'
 import { logger } from '@join-com/gcloud-logger-trace'
 import { reportError } from './reportError'
 import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
@@ -41,11 +41,11 @@ export class Publisher<T = unknown> {
     }
   }
 
-  private getAttributes() {
+  private getAttributes(): Attributes {
     const traceContext = getTraceContext()
     if (!traceContext) {
       logger.warn('No trace context defined')
-      return undefined
+      return {}
     }
 
     const traceContextName = getTraceContextName()

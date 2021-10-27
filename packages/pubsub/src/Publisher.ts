@@ -2,6 +2,7 @@ import { Attributes, PubSub, Topic } from '@google-cloud/pubsub'
 import { logger } from '@join-com/gcloud-logger-trace'
 import { reportError } from './reportError'
 import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
+import { createCallOptions } from './createCallOptions'
 
 export class Publisher<T = unknown> {
   private topic: Topic
@@ -36,7 +37,7 @@ export class Publisher<T = unknown> {
     )
 
     if (!exist) {
-      await this.topic.create()
+      await this.topic.create(createCallOptions)
       logger.info(`PubSub: Topic ${this.topicName} is created`)
     }
   }

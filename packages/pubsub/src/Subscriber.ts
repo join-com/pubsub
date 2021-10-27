@@ -10,6 +10,7 @@ import { logger } from '@join-com/gcloud-logger-trace'
 import { reportError } from './reportError'
 import * as trace from '@join-com/node-trace'
 import { DataParser } from './DataParser'
+import { createCallOptions } from './createCallOptions'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -160,7 +161,7 @@ export class Subscriber<T = unknown> {
     )
 
     if (!exist) {
-      await topic.create()
+      await topic.create(createCallOptions)
       logger.info(`PubSub: Topic ${topicName} is created`)
     }
   }
@@ -178,7 +179,7 @@ export class Subscriber<T = unknown> {
     )
 
     if (!exist) {
-      await subscription.create(options)
+      await subscription.create({ ...options, gaxOpts: createCallOptions })
       logger.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
       await subscription.setMetadata(options)

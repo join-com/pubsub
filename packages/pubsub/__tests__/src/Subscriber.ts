@@ -12,6 +12,7 @@ import {
   getTopicMock,
   MessageMock
 } from '../support/pubsubMock'
+import { createCallOptions } from '../../src/createCallOptions'
 
 const topicName = 'topic-name'
 const subscriptionName = 'subscription-name'
@@ -65,6 +66,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(topicMock.create).toHaveBeenCalledTimes(1)
+      expect(topicMock.create).toHaveBeenCalledWith(createCallOptions)
       expect(clientMock.topic).toHaveBeenCalledWith(topicName)
     })
 
@@ -89,7 +91,8 @@ describe('Subscriber', () => {
         retryPolicy: {
           minimumBackoff: { seconds: options.minBackoffSeconds },
           maximumBackoff: { seconds: options.maxBackoffSeconds }
-        }
+        },
+        gaxOpts: createCallOptions
       })
 
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
@@ -232,7 +235,9 @@ describe('Subscriber', () => {
           await subscriber.initialize()
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(2)
-          expect(subscriptionMock.create).toHaveBeenLastCalledWith(undefined)
+          expect(subscriptionMock.create).toHaveBeenLastCalledWith({
+            gaxOpts: createCallOptions
+          })
           expect(topicMock.subscription).toHaveBeenLastCalledWith(
             deadLetterSubscriptionName
           )
@@ -281,7 +286,8 @@ describe('Subscriber', () => {
           expect(subscriptionMock.create).toHaveBeenCalledTimes(1)
           expect(subscriptionMock.create).toHaveBeenCalledWith({
             deadLetterPolicy: null,
-            retryPolicy: {}
+            retryPolicy: {},
+            gaxOpts: createCallOptions
           })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(
             deadLetterSubscriptionName,
@@ -304,7 +310,8 @@ describe('Subscriber', () => {
               maxDeliveryAttempts: 123,
               deadLetterTopic:
                 'projects/gcloudProjectName/topics/subscription-name-unack'
-            }
+            },
+            gaxOpts: createCallOptions
           })
         })
       })

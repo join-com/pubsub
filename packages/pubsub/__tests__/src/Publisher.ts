@@ -1,3 +1,4 @@
+import { createCallOptions } from '../../src/createCallOptions'
 import { Publisher } from '../../src/Publisher'
 import * as traceMock from '../../__mocks__/@join-com/node-trace'
 import { getClientMock, getTopicMock } from '../support/pubsubMock'
@@ -29,7 +30,7 @@ describe('Publisher', () => {
 
       await publisher.initialize()
 
-      expect(topicMock.create).toHaveBeenCalled()
+      expect(topicMock.create).toHaveBeenCalledWith(createCallOptions)
       expect(clientMock.topic).toHaveBeenCalledWith(topic)
     })
 

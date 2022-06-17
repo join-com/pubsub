@@ -1,8 +1,7 @@
 export class DataParser {
-  public parse(data: Buffer) {
-    const dateTimeRegex =
-      /^(\d{4}\-\d\d\-\d\d([tT][\d:\.]*)?)([zZ]|([+\-])(\d\d):?(\d\d))?$/
-    const dateTimeReviver = (_: string, value: any) => {
+  public parse(data: Buffer): unknown {
+    const dateTimeRegex = /^(\d{4}-\d\d-\d\d([tT][\d:.]*)?)([zZ]|([+-])(\d\d):?(\d\d))?$/
+    const dateTimeReviver = (_: string, value: unknown) => {
       if (typeof value === 'string' && dateTimeRegex.test(value)) {
         return new Date(value)
       }

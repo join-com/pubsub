@@ -1,16 +1,7 @@
-import {
-  IAM,
-  Message,
-  Subscription,
-  Topic,
-  PubSub,
-  SubscriptionOptions
-} from '@google-cloud/pubsub'
-import { logger } from '@join-com/gcloud-logger-trace'
-import { reportError } from './reportError'
-import * as trace from '@join-com/node-trace'
-import { DataParser } from './DataParser'
+import { IAM, Message, Subscription, Topic, PubSub, SubscriptionOptions } from '@google-cloud/pubsub'
 import { createCallOptions } from './createCallOptions'
+import { DataParser } from './DataParser'
+import { ILogger } from './ILogger'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -33,6 +24,12 @@ export interface ISubscriptionOptions {
   }
 }
 
+export interface ISubscriberOptions {
+  topicName: string
+  subscriptionName: string
+  subscriptionOptions?: ISubscriptionOptions
+}
+
 interface ISubscriptionRetryPolicy {
   minimumBackoff?: { seconds?: number }
   maximumBackoff?: { seconds?: number }
@@ -49,33 +46,37 @@ interface ISubscriptionInitializationOptions {
 }
 
 export class Subscriber<T = unknown> {
+  readonly topicName: string
+  readonly subscriptionName: string
+
   private readonly topic: Topic
   private readonly subscription: Subscription
 
   private readonly deadLetterTopicName?: string
-  private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscriptionName?: string
+
+  private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscription?: Subscription
 
   constructor(
-    readonly topicName: string,
-    readonly subscriptionName: string,
-    pubsubClient: PubSub,
-    private readonly options: ISubscriptionOptions = {}
+    private readonly subscriberOptions: ISubscriberOptions,
+    pubSubClient: PubSub,
+    private readonly logger?: ILogger,
   ) {
-    this.topic = pubsubClient.topic(topicName)
-    this.subscription = this.topic.subscription(
-      subscriptionName,
-      this.getStartupOptions(options)
-    )
+    const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
+
+    this.topicName = topicName
+    this.subscriptionName = subscriptionName
+
+    this.topic = pubSubClient.topic(topicName)
+    this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
 
     if (this.isDeadLetterPolicyEnabled()) {
       this.deadLetterTopicName = `${subscriptionName}-unack`
-      this.deadLetterTopic = pubsubClient.topic(this.deadLetterTopicName)
       this.deadLetterSubscriptionName = `${subscriptionName}-unack`
-      this.deadLetterSubscription = this.deadLetterTopic.subscription(
-        this.deadLetterSubscriptionName
-      )
+
+      this.deadLetterTopic = pubSubClient.topic(this.deadLetterTopicName)
+      this.deadLetterSubscription = this.deadLetterTopic.subscription(this.deadLetterSubscriptionName)
     }
   }
 
@@ -84,196 +85,177 @@ export class Subscriber<T = unknown> {
       await this.initializeTopic(this.topicName, this.topic)
       await this.initializeDeadLetterTopic()
 
-      await this.initializeSubscription(
-        this.subscriptionName,
-        this.subscription,
-        this.getInitializationOptions()
-      )
+      await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
       await this.initializeDeadLetterSubscription()
     } catch (e) {
-      reportError(e)
-      process.exit(1)
+      this.logger?.error(`PubSub: Failed to initialize subscriber ${this.subscriptionName}`, e)
+      process.abort()
     }
   }
 
   public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     this.subscription.on('error', this.processError)
     this.subscription.on('message', this.processMsg(asyncCallback))
-    logger.info(
-      `PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`
-    )
+
+    this.logger?.info(`PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`)
   }
 
   private logMessage(message: Message, dataParsed: T) {
-    const filteredMessage = {
+    const messageInfo = {
       id: message.id,
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime,
       received: message.received,
-      deliveryAttempt: message.deliveryAttempt
+      deliveryAttempt: message.deliveryAttempt,
     }
 
-    logger.info(
+    this.logger?.info(
       `PubSub: Got message on topic: ${this.topicName} with subscription: ${this.subscriptionName} with data:`,
-      { filteredMessage, dataParsed }
+      { messageInfo, dataParsed },
     )
   }
 
   private parseData(message: Message): T {
     const dataParser = new DataParser()
-    const dataParsed = dataParser.parse(message.data)
-    const attributes: { [key: string]: string } = message.attributes || {}
-    const traceContextName = trace.getTraceContextName()
-    const traceId = attributes[traceContextName]
-    trace.start(traceId)
-
+    const dataParsed = dataParser.parse(message.data) as T
     this.logMessage(message, dataParsed)
     return dataParsed
   }
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
-    return async (message: Message) => {
-      try {
-        const dataParsed = this.parseData(message)
-        const messageParsed = Object.assign(message, { dataParsed })
-        await asyncCallback(messageParsed)
-      } catch (e) {
+    return (message: Message) => {
+      const dataParsed = this.parseData(message)
+      const messageParsed = Object.assign(message, { dataParsed })
+      asyncCallback(messageParsed).catch(e => {
         message.nack()
-        reportError(e)
-      }
+        this.logger?.error('PubSub: Failed to process message', e)
+      })
     }
   }
 
-  private processError = async (error: Error) => {
-    reportError(error)
-    await this.subscription.close()
-    this.subscription.open()
-    logger.info(`Reopened subscription ${this.subscription.name} after error`, {
-      error
-    })
+  private processError = (error: unknown) => {
+    this.logger?.warn('Subscriber failed with error', error)
+
+    // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
+    // automatically
+    //
+    // await this.subscription.close()
+    // this.subscription.open()
+    // this.logger?.info(`Reopened subscription ${this.subscriptionName} after error`, { error, })
   }
 
   private async initializeTopic(topicName: string, topic: Topic) {
     const [exist] = await topic.exists()
-    logger.info(
-      `PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`
-    )
+    this.logger?.info(`PubSub: Topic ${topicName} ${exist ? 'exists' : 'does not exist'}`)
 
     if (!exist) {
       await topic.create(createCallOptions)
-      logger.info(`PubSub: Topic ${topicName} is created`)
+      this.logger?.info(`PubSub: Topic ${topicName} is created`)
     }
   }
 
   private async initializeSubscription(
     subscriptionName: string,
     subscription: Subscription,
-    options?: ISubscriptionInitializationOptions
+    options?: ISubscriptionInitializationOptions,
   ) {
     const [exist] = await subscription.exists()
-    logger.info(
-      `PubSub: Subscription ${subscriptionName} ${
-        exist ? 'exists' : 'does not exist'
-      }`
-    )
+    this.logger?.info(`PubSub: Subscription ${subscriptionName} ${exist ? 'exists' : 'does not exist'}`)
 
     if (!exist) {
       await subscription.create({ ...options, gaxOpts: createCallOptions })
-      logger.info(`PubSub: Subscription ${subscriptionName} is created`)
+      this.logger?.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
       await subscription.setMetadata(options)
-      logger.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
+      this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
     }
   }
 
   private async initializeDeadLetterTopic() {
     if (this.deadLetterTopicName && this.deadLetterTopic) {
       await this.initializeTopic(this.deadLetterTopicName, this.deadLetterTopic)
-      await this.addPubsubServiceAccountRole(
-        this.deadLetterTopic.iam,
-        'roles/pubsub.publisher'
-      )
+      await this.addPubsubServiceAccountRole(this.deadLetterTopic.iam, 'roles/pubsub.publisher')
     }
   }
 
   private async initializeDeadLetterSubscription() {
     if (this.deadLetterSubscriptionName && this.deadLetterSubscription) {
-      await this.initializeSubscription(
-        this.deadLetterSubscriptionName,
-        this.deadLetterSubscription
-      )
-      await this.addPubsubServiceAccountRole(
-        this.subscription.iam,
-        'roles/pubsub.subscriber'
-      )
+      await this.initializeSubscription(this.deadLetterSubscriptionName, this.deadLetterSubscription)
+      await this.addPubsubServiceAccountRole(this.subscription.iam, 'roles/pubsub.subscriber')
     }
   }
 
-  private async addPubsubServiceAccountRole(
-    iam: IAM,
-    role: 'roles/pubsub.subscriber' | 'roles/pubsub.publisher'
-  ) {
-    const gcloudProjectId =
-      this.options.gcloudProject && this.options.gcloudProject.id
-    const pubsubServiceAccount = `serviceAccount:service-${gcloudProjectId}@gcp-sa-pubsub.iam.gserviceaccount.com`
+  private async addPubsubServiceAccountRole(iam: IAM, role: 'roles/pubsub.subscriber' | 'roles/pubsub.publisher') {
+    const gcloudProjectId = this.subscriberOptions.subscriptionOptions?.gcloudProject?.id
+    if (!gcloudProjectId) {
+      this.logger?.error('Dead lettering enabled but no gcloud project id provided')
+      return
+    }
 
+    const pubsubServiceAccount = `serviceAccount:service-${gcloudProjectId}@gcp-sa-pubsub.iam.gserviceaccount.com`
     await iam.setPolicy({
       bindings: [
         {
           members: [pubsubServiceAccount],
-          role
-        }
-      ]
+          role,
+        },
+      ],
     })
   }
 
   private isDeadLetterPolicyEnabled() {
-    return Boolean(this.options.maxDeliveryAttempts)
+    return Boolean(this.subscriberOptions?.subscriptionOptions?.maxDeliveryAttempts)
   }
 
   private getInitializationOptions(): ISubscriptionInitializationOptions {
     const options: ISubscriptionInitializationOptions = {
       deadLetterPolicy: null,
-      retryPolicy: {}
+      retryPolicy: {},
     }
 
-    if (this.options.minBackoffSeconds !== undefined) {
+    const { subscriptionOptions } = this.subscriberOptions
+    if (!subscriptionOptions) {
+      return options
+    }
+
+    if (subscriptionOptions.minBackoffSeconds !== undefined) {
       options.retryPolicy.minimumBackoff = {
-        seconds: this.options.minBackoffSeconds
+        seconds: subscriptionOptions.minBackoffSeconds,
       }
     }
 
-    if (this.options.maxBackoffSeconds !== undefined) {
+    if (subscriptionOptions.maxBackoffSeconds !== undefined) {
       options.retryPolicy.maximumBackoff = {
-        seconds: this.options.maxBackoffSeconds
+        seconds: subscriptionOptions.maxBackoffSeconds,
       }
     }
 
-    if (this.isDeadLetterPolicyEnabled()) {
-      const gcloudProjectName = this.options.gcloudProject?.name
-      const deadLetterTopic = `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`
-      options.deadLetterPolicy = {
-        maxDeliveryAttempts: this.options.maxDeliveryAttempts,
-        deadLetterTopic
+    if (this.deadLetterTopic) {
+      const gcloudProjectName = subscriptionOptions.gcloudProject?.name
+      if (!gcloudProjectName) {
+        this.logger?.error('Dead lettering enabled but no gcloud project name provided')
+      } else {
+        options.deadLetterPolicy = {
+          maxDeliveryAttempts: subscriptionOptions.maxDeliveryAttempts,
+          deadLetterTopic: `projects/${gcloudProjectName}/topics/${this.deadLetterTopic?.name}`,
+        }
       }
     }
 
     return options
   }
 
-  private getStartupOptions(
-    options?: ISubscriptionOptions
-  ): SubscriptionOptions {
+  private getStartupOptions(options?: ISubscriptionOptions): SubscriptionOptions {
     return {
       ackDeadline: options?.ackDeadline,
       flowControl: {
         allowExcessMessages: options?.allowExcessMessages,
-        maxMessages: options?.maxMessages
+        maxMessages: options?.maxMessages,
       },
       streamingOptions: {
-        maxStreams: options?.maxStreams
-      }
+        maxStreams: options?.maxStreams,
+      },
     }
   }
 }

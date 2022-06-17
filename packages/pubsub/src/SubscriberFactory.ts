@@ -1,5 +1,6 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { ISubscriptionOptions, Subscriber, IParsedMessage } from './Subscriber'
+import { ILogger } from './ILogger'
+import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions } from './Subscriber'
 
 export interface ISubscriber<T> {
   topicName: string
@@ -11,20 +12,20 @@ export interface ISubscriber<T> {
 export class SubscriberFactory<T> {
   private readonly client: PubSub
 
-  constructor(private readonly defaultOptions: ISubscriptionOptions) {
+  constructor(private readonly defaultOptions: ISubscriptionOptions, private readonly logger?: ILogger) {
     this.client = new PubSub()
   }
 
   public getSubscriber<K extends keyof T>(
-    topic: K,
-    subscription: string,
-    options?: ISubscriptionOptions
+    topicName: K,
+    subscriptionName: string,
+    options?: ISubscriptionOptions,
   ): ISubscriber<T[K]> {
-    return new Subscriber(
-      topic.toString(),
-      subscription,
-      this.client,
-      options ?? this.defaultOptions
-    )
+    const subscriberOptions: ISubscriberOptions = {
+      topicName: topicName.toString(),
+      subscriptionName,
+      subscriptionOptions: options ?? this.defaultOptions,
+    }
+    return new Subscriber(subscriberOptions, this.client, this.logger)
   }
 }

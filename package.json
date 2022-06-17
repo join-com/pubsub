@@ -1,41 +1,22 @@
 {
-  "name": "@join-com/pubsub",
-  "version": "0.0.20",
-  "description": "Google Cloud PubSub wrapper",
-  "main": "lib/index.js",
-  "types": "./lib/index.d.ts",
-  "repository": "github:join-com/pubsub",
-  "author": "JOIN AG",
   "license": "UNLICENSED",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/pubsub"
   ],
   "scripts": {
-    "makepretty": "prettier --write '**/*.ts'"
+    "build": "yarn workspaces run build",
+    "lint": "yarn workspaces run lint",
+    "test": "yarn workspaces run test",
+    "release": "yarn workspaces run semantic-release -e semantic-release-monorepo -d",
+    "postinstall": "if [ -d .git ]; then git config core.hooksPath .hooks; fi"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lerna run build && lint-staged"
-    }
+  "engines": {
+    "node": ">=14.0.0"
   },
-  "lint-staged": {
-    "*.{ts}": [
-      "yarn prettier --write"
-    ],
-    "src/**/*.ts": [
-      "npm run lint --fix"
-    ]
-  },
-  "keywords": [
-    "pubsub",
-    "gcloud"
-  ],
   "devDependencies": {
-    "husky": "^4.3.6",
-    "lerna": "^3.22.1",
-    "lint-staged": "^10.5.3",
-    "prettier": "^2.2.1"
-  },
-  "dependencies": {}
+    "conventional-changelog-conventionalcommits": "^5.0.0",
+    "semantic-release": "^18.0.1",
+    "semantic-release-monorepo": "^7.0.5"
+  }
 }

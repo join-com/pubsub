@@ -1,13 +1,11 @@
-import { Attributes, PubSub, Topic } from '@google-cloud/pubsub'
-import { logger } from '@join-com/gcloud-logger-trace'
-import { reportError } from './reportError'
-import { getTraceContext, getTraceContextName } from '@join-com/node-trace'
+import { PubSub, Topic } from '@google-cloud/pubsub'
 import { createCallOptions } from './createCallOptions'
+import { ILogger } from './ILogger'
 
 export class Publisher<T = unknown> {
-  private topic: Topic
+  private readonly topic: Topic
 
-  constructor(readonly topicName: string, client: PubSub) {
+  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
     this.topic = client.topic(topicName)
   }
 
@@ -15,41 +13,23 @@ export class Publisher<T = unknown> {
     try {
       await this.initializeTopic()
     } catch (e) {
-      reportError(e)
-      process.exit(1)
+      this.logger?.error('PubSub: Failed to initialize publisher', e)
+      process.abort()
     }
   }
 
   public async publishMsg(data: T): Promise<void> {
-    const attributes = this.getAttributes()
-    const messageId = await this.topic.publishJSON(data as any, attributes)
-
-    logger.info(`PubSub: Message sent for topic: ${this.topicName}:`, {
-      data,
-      messageId
-    })
+    const messageId = await this.topic.publishMessage({ json: data })
+    this.logger?.info(`PubSub: Message sent for topic: ${this.topicName}:`, { data, messageId })
   }
 
   private async initializeTopic() {
     const [exist] = await this.topic.exists()
-    logger.info(
-      `PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`
-    )
+    this.logger?.info(`PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`)
 
     if (!exist) {
       await this.topic.create(createCallOptions)
-      logger.info(`PubSub: Topic ${this.topicName} is created`)
+      this.logger?.info(`PubSub: Topic ${this.topicName} is created`)
     }
-  }
-
-  private getAttributes(): Attributes {
-    const traceContext = getTraceContext()
-    if (!traceContext) {
-      logger.warn('No trace context defined')
-      return {}
-    }
-
-    const traceContextName = getTraceContextName()
-    return { [traceContextName]: traceContext }
   }
 }

@@ -1,7 +1,7 @@
+import { PubSub } from '@google-cloud/pubsub'
 import { createCallOptions } from '../../src/createCallOptions'
 import { Publisher } from '../../src/Publisher'
-import * as traceMock from '../../__mocks__/@join-com/node-trace'
-import { getClientMock, getTopicMock } from '../support/pubsubMock'
+import { getClientMock, getTopicMock } from './support/pubsubMock'
 
 const topic = 'topic-name'
 const topicMock = getTopicMock()
@@ -11,17 +11,14 @@ describe('Publisher', () => {
   let publisher: Publisher
 
   beforeEach(() => {
-    publisher = new Publisher(topic, clientMock as any)
+    publisher = new Publisher(topic, clientMock as unknown as PubSub)
   })
 
   afterEach(() => {
     clientMock.topic.mockClear()
-
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
-    topicMock.publishJSON.mockReset()
-    traceMock.getTraceContext.mockReset()
-    traceMock.getTraceContextName.mockReset()
+    topicMock.publishMessage.mockReset()
   })
 
   describe('initialize', () => {
@@ -45,38 +42,19 @@ describe('Publisher', () => {
   })
 
   describe('publishMsg', () => {
-    const traceContext = 'trace-context'
-    const traceContextName = 'trace-context-name'
     const message = { id: 1 }
-
-    beforeEach(() => {
-      traceMock.getTraceContext.mockReturnValue(traceContext)
-      traceMock.getTraceContextName.mockReturnValue(traceContextName)
-    })
 
     it('publishes json object with trace info', async () => {
       await publisher.publishMsg(message)
 
-      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, {
-        [traceContextName]: traceContext
-      })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: message })
     })
 
     it('publishes json array', async () => {
       const array = [message, message]
       await publisher.publishMsg(array)
 
-      expect(topicMock.publishJSON).toHaveBeenCalledWith(array, {
-        [traceContextName]: traceContext
-      })
-    })
-
-    it('does not send trace info unless defined', async () => {
-      traceMock.getTraceContext.mockReturnValue(undefined)
-
-      await publisher.publishMsg({ id: 1 })
-
-      expect(topicMock.publishJSON).toHaveBeenCalledWith(message, {})
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
     })
   })
 })

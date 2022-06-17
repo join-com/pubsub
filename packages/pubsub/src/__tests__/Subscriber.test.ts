@@ -1,18 +1,14 @@
-import * as traceMock from '../../__mocks__/@join-com/node-trace'
-import {
-  IParsedMessage,
-  ISubscriptionOptions,
-  Subscriber
-} from '../../src/Subscriber'
+import { PubSub } from '@google-cloud/pubsub'
+import { createCallOptions } from '../../src/createCallOptions'
+import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../../src/Subscriber'
 import {
   getClientMock,
   getIamMock,
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  MessageMock
-} from '../support/pubsubMock'
-import { createCallOptions } from '../../src/createCallOptions'
+  IMessageMock,
+} from './support/pubsubMock'
 
 const topicName = 'topic-name'
 const subscriptionName = 'subscription-name'
@@ -22,38 +18,30 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
-const options: ISubscriptionOptions = {
+const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
   maxMessages: 5,
   maxStreams: 1,
   minBackoffSeconds: 1,
-  maxBackoffSeconds: 10
+  maxBackoffSeconds: 10,
 }
 
 describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber(
-      topicName,
-      subscriptionName,
-      clientMock as any,
-      options
-    )
+    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub)
   })
 
   afterEach(() => {
     clientMock.topic.mockClear()
     topicMock.subscription.mockClear()
-
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
     subscriptionMock.exists.mockReset()
     subscriptionMock.create.mockReset()
     subscriptionMock.setMetadata.mockReset()
-    traceMock.getTraceContextName.mockReset()
-    traceMock.start.mockReset()
     iamTopicMock.setPolicy.mockReset()
     iamSubscriptionMock.setPolicy.mockReset()
   })
@@ -89,21 +77,21 @@ describe('Subscriber', () => {
       expect(subscriptionMock.create).toHaveBeenCalledWith({
         deadLetterPolicy: null,
         retryPolicy: {
-          minimumBackoff: { seconds: options.minBackoffSeconds },
-          maximumBackoff: { seconds: options.maxBackoffSeconds }
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
-        gaxOpts: createCallOptions
+        gaxOpts: createCallOptions,
       })
 
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
-        ackDeadline: options.ackDeadline,
+        ackDeadline: subscriptionOptions.ackDeadline,
         flowControl: {
-          allowExcessMessages: options.allowExcessMessages,
-          maxMessages: options.maxMessages
+          allowExcessMessages: subscriptionOptions.allowExcessMessages,
+          maxMessages: subscriptionOptions.maxMessages,
         },
         streamingOptions: {
-          maxStreams: options.maxStreams
-        }
+          maxStreams: subscriptionOptions.maxStreams,
+        },
       })
 
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
@@ -119,9 +107,9 @@ describe('Subscriber', () => {
       expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
         deadLetterPolicy: null,
         retryPolicy: {
-          minimumBackoff: { seconds: options.minBackoffSeconds },
-          maximumBackoff: { seconds: options.maxBackoffSeconds }
-        }
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
       })
     })
 
@@ -129,18 +117,14 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
-      subscriber = new Subscriber(
-        topicName,
-        subscriptionName,
-        clientMock as any
-      )
+      subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub)
 
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
         deadLetterPolicy: null,
-        retryPolicy: {}
+        retryPolicy: {},
       })
     })
 
@@ -149,20 +133,18 @@ describe('Subscriber', () => {
       const deadLetterSubscriptionName = 'subscription-name-unack'
 
       const deadLetterOptions: ISubscriptionOptions = {
-        ...options,
+        ...subscriptionOptions,
         maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
-          id: 123456789
-        }
+          id: 123456789,
+        },
       }
 
       beforeEach(() => {
         subscriber = new Subscriber(
-          topicName,
-          subscriptionName,
-          clientMock as any,
-          deadLetterOptions
+          { topicName, subscriptionName, subscriptionOptions: deadLetterOptions },
+          clientMock as unknown as PubSub,
         )
       })
 
@@ -188,12 +170,10 @@ describe('Subscriber', () => {
           expect(iamTopicMock.setPolicy).toHaveBeenCalledWith({
             bindings: [
               {
-                members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
-                ],
-                role: 'roles/pubsub.publisher'
-              }
-            ]
+                members: ['serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'],
+                role: 'roles/pubsub.publisher',
+              },
+            ],
           })
         })
 
@@ -210,10 +190,8 @@ describe('Subscriber', () => {
           topicMock.exists.mockResolvedValue([false])
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
-            topicName,
-            subscriptionName,
-            clientMock as any,
-            emptyOptions
+            { topicName, subscriptionName, subscriptionOptions: emptyOptions },
+            clientMock as unknown as PubSub,
           )
 
           await optionlessSubscriber.initialize()
@@ -236,11 +214,9 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(2)
           expect(subscriptionMock.create).toHaveBeenLastCalledWith({
-            gaxOpts: createCallOptions
+            gaxOpts: createCallOptions,
           })
-          expect(topicMock.subscription).toHaveBeenLastCalledWith(
-            deadLetterSubscriptionName
-          )
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
         })
 
         it('adds subscriber role to pubsub service account', async () => {
@@ -251,12 +227,10 @@ describe('Subscriber', () => {
           expect(iamSubscriptionMock.setPolicy).toHaveBeenCalledWith({
             bindings: [
               {
-                members: [
-                  'serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'
-                ],
-                role: 'roles/pubsub.subscriber'
-              }
-            ]
+                members: ['serviceAccount:service-123456789@gcp-sa-pubsub.iam.gserviceaccount.com'],
+                role: 'roles/pubsub.subscriber',
+              },
+            ],
           })
         })
 
@@ -266,19 +240,15 @@ describe('Subscriber', () => {
           await subscriber.initialize()
 
           expect(subscriptionMock.create).not.toHaveBeenCalled()
-          expect(topicMock.subscription).toHaveBeenLastCalledWith(
-            deadLetterSubscriptionName
-          )
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
         })
 
         it('does not create deadLetterSubscription if not necessary', async () => {
           subscriptionMock.exists.mockResolvedValue([false])
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
-            topicName,
-            subscriptionName,
-            clientMock as any,
-            emptyOptions
+            { topicName, subscriptionName, subscriptionOptions: emptyOptions },
+            clientMock as unknown as PubSub,
           )
 
           await optionlessSubscriber.initialize()
@@ -287,12 +257,9 @@ describe('Subscriber', () => {
           expect(subscriptionMock.create).toHaveBeenCalledWith({
             deadLetterPolicy: null,
             retryPolicy: {},
-            gaxOpts: createCallOptions
+            gaxOpts: createCallOptions,
           })
-          expect(topicMock.subscription).not.toHaveBeenCalledWith(
-            deadLetterSubscriptionName,
-            expect.anything()
-          )
+          expect(topicMock.subscription).not.toHaveBeenCalledWith(deadLetterSubscriptionName, expect.anything())
           expect(iamSubscriptionMock.setPolicy).not.toHaveBeenCalled()
         })
 
@@ -303,15 +270,14 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledWith({
             retryPolicy: {
-              minimumBackoff: { seconds: options.minBackoffSeconds },
-              maximumBackoff: { seconds: options.maxBackoffSeconds }
+              minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+              maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
             },
             deadLetterPolicy: {
               maxDeliveryAttempts: 123,
-              deadLetterTopic:
-                'projects/gcloudProjectName/topics/subscription-name-unack'
+              deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
             },
-            gaxOpts: createCallOptions
+            gaxOpts: createCallOptions,
           })
         })
       })
@@ -321,45 +287,43 @@ describe('Subscriber', () => {
   describe('start', () => {
     const data = { id: 1, createdAt: new Date() }
 
-    let messageMock: MessageMock
+    let messageMock: IMessageMock
 
     beforeEach(() => {
-      const traceContextName = 'trace-context-name'
-      traceMock.getTraceContextName.mockReturnValue(traceContextName)
-
-      const attributes = { [traceContextName]: 'trace-context' }
-      messageMock = getMessageMock(data, attributes)
+      messageMock = getMessageMock(data)
     })
 
     it('receives parsed data', async () => {
       let parsedMessage: IParsedMessage<unknown> | undefined
-      subscriber.start(async msg => {
+      subscriber.start(msg => {
         parsedMessage = msg
+        return Promise.resolve()
       })
 
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(parsedMessage?.dataParsed).toEqual(data)
-      expect(traceMock.start).toHaveBeenCalledWith('trace-context')
     })
 
     it('unacknowledges message if processing fails', async () => {
-      subscriber.start(async () => {
-        throw new Error('Something wrong')
-      })
+      subscriber.start(() => Promise.reject('Something wrong'))
 
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(messageMock.nack).toHaveBeenCalled()
     })
 
-    it('restarts subscription on error', async () => {
-      subscriber.start(Promise.resolve)
+    // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
+    // automatically
+    //
+    // eslint-disable-next-line jest/no-commented-out-tests
+    // it('restarts subscription on error', async () => {
+    //   subscriber.start(() => Promise.resolve())
 
-      await subscriptionMock.emitError(new Error('boom'))
+    //   await subscriptionMock.emitError(new Error('boom'))
 
-      expect(subscriptionMock.close).toHaveBeenCalled()
-      expect(subscriptionMock.open).toHaveBeenCalled()
-    })
+    //   expect(subscriptionMock.close).toHaveBeenCalled()
+    //   expect(subscriptionMock.open).toHaveBeenCalled()
+    // })
   })
 })

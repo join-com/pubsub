@@ -1,17 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
 export const getIamMock = () => ({
-  setPolicy: jest.fn()
+  setPolicy: jest.fn(),
 })
 
-export interface SubscriptionMockOption {
+export interface ISubscriptionMockOption {
   iamMock?: ReturnType<typeof getIamMock>
 }
 
-export const getSubscriptionMock = ({
-  iamMock
-}: SubscriptionMockOption = {}) => {
+export const getSubscriptionMock = ({ iamMock }: ISubscriptionMockOption = {}) => {
   const eventHandlers: EventHandlerMap = {}
   return {
     exists: jest.fn(),
@@ -23,65 +22,60 @@ export const getSubscriptionMock = ({
     on: (event: string, handler: EventHandler) => {
       eventHandlers[event] = handler
     },
-    receiveMessage: async (message: MessageMock) => {
-      const handler = eventHandlers.message
+    receiveMessage: async (message: IMessageMock) => {
+      const handler = eventHandlers['message']
       if (handler) {
         await handler(message)
       }
     },
     emitError: async (err: Error) => {
-      const handler = eventHandlers.error
+      const handler = eventHandlers['error']
       if (handler) {
         await handler(err)
       }
     },
     emitClose: async () => {
-      const handler = eventHandlers.close
+      const handler = eventHandlers['close']
       if (handler) {
         // undefined means no error when closing subscriber
         await handler(undefined)
       }
-    }
+    },
   }
 }
 
-export interface TopicMockOption {
+export interface ITopicMockOption {
   subscriptionMock?: ReturnType<typeof getSubscriptionMock>
   iamMock?: ReturnType<typeof getIamMock>
 }
 
-export const getTopicMock = ({
-  subscriptionMock,
-  iamMock
-}: TopicMockOption = {}) => ({
+export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
-  publishJSON: jest.fn(),
+  publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
-  iam: iamMock
+  iam: iamMock,
 })
 
-export interface ClientMockOption {
+export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
 }
 
-export const getClientMock = ({ topicMock }: ClientMockOption = {}) => ({
-  topic: jest.fn(() => topicMock)
+export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
+  topic: jest.fn(() => topicMock),
 })
 
-export interface MessageMock {
+export interface IMessageMock {
   data: Buffer
-  attributes: {}
-  ack: jest.Mock<any, any>
-  nack: jest.Mock<any, any>
+  ack: jest.Mock<unknown, any>
+  nack: jest.Mock<unknown, any>
 }
 
-export const getMessageMock = (data: any, attributes: {} = {}): MessageMock => {
+export const getMessageMock = (data: unknown): IMessageMock => {
   const buffer = Buffer.from(JSON.stringify(data), 'utf8')
   return {
     data: buffer,
-    attributes,
     ack: jest.fn(),
-    nack: jest.fn()
+    nack: jest.fn(),
   }
 }

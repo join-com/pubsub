@@ -231,14 +231,14 @@ export class Subscriber<T = unknown> {
       }
     }
 
-    if (this.deadLetterTopic) {
+    if (this.deadLetterTopic && this.deadLetterTopicName) {
       const gcloudProjectName = subscriptionOptions.gcloudProject?.name
       if (!gcloudProjectName) {
         this.logger?.error('Dead lettering enabled but no gcloud project name provided')
       } else {
         options.deadLetterPolicy = {
           maxDeliveryAttempts: subscriptionOptions.maxDeliveryAttempts,
-          deadLetterTopic: `projects/${gcloudProjectName}/topics/${this.deadLetterTopic?.name}`,
+          deadLetterTopic: `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`,
         }
       }
     }

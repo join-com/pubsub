@@ -5,13 +5,20 @@ import { getClientMock, getTopicMock } from './support/pubsubMock'
 
 const topic = 'topic-name'
 const topicMock = getTopicMock()
-const clientMock = getClientMock()
+const clientMock = getClientMock({ topicMock })
 
 describe('Publisher', () => {
   let publisher: Publisher
 
   beforeEach(() => {
     publisher = new Publisher(topic, clientMock as unknown as PubSub)
+  })
+
+  afterEach(() => {
+    clientMock.topic.mockClear()
+    topicMock.exists.mockReset()
+    topicMock.create.mockReset()
+    topicMock.publishMessage.mockReset()
   })
 
   describe('initialize', () => {
@@ -24,36 +31,30 @@ describe('Publisher', () => {
       expect(clientMock.topic).toHaveBeenCalledWith(topic)
     })
 
-    //     it('does not create if topic exists', async () => {
-    //       topicMock.exists.mockResolvedValue([true])
+    it('does not create if topic exists', async () => {
+      topicMock.exists.mockResolvedValue([true])
 
-    //       await publisher.initialize()
+      await publisher.initialize()
 
-    //       expect(topicMock.create).not.toHaveBeenCalled()
-    //       expect(clientMock.topic).toHaveBeenCalledWith(topic)
-    //     })
+      expect(topicMock.create).not.toHaveBeenCalled()
+      expect(clientMock.topic).toHaveBeenCalledWith(topic)
+    })
   })
 
-  //   describe('publishMsg', () => {
-  //     const traceContext = 'trace-context'
-  //     const traceContextName = 'trace-context-name'
-  //     const message = { id: 1 }
+  describe('publishMsg', () => {
+    const message = { id: 1 }
 
-  //     it('publishes json object with trace info', async () => {
-  //       await publisher.publishMsg(message)
+    it('publishes json object with trace info', async () => {
+      await publisher.publishMsg(message)
 
-  //       expect(topicMock.publishJSON).toHaveBeenCalledWith(message, {
-  //         [traceContextName]: traceContext,
-  //       })
-  //     })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: message })
+    })
 
-  //     it('publishes json array', async () => {
-  //       const array = [message, message]
-  //       await publisher.publishMsg(array)
+    it('publishes json array', async () => {
+      const array = [message, message]
+      await publisher.publishMsg(array)
 
-  //       expect(topicMock.publishJSON).toHaveBeenCalledWith(array, {
-  //         [traceContextName]: traceContext,
-  //       })
-  //     })
-  //   })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
+    })
+  })
 })

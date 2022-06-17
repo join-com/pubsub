@@ -3,6 +3,6 @@
   "include": ["./src/**/*"],
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node", "jest", "jest-extended", "@join-com/jest-matchers"],
+    "types": ["node", "jest", "jest-extended"],
   }
 }

@@ -34,6 +34,18 @@ describe('Subscriber', () => {
     subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub)
   })
 
+  afterEach(() => {
+    clientMock.topic.mockClear()
+    topicMock.subscription.mockClear()
+    topicMock.exists.mockReset()
+    topicMock.create.mockReset()
+    subscriptionMock.exists.mockReset()
+    subscriptionMock.create.mockReset()
+    subscriptionMock.setMetadata.mockReset()
+    iamTopicMock.setPolicy.mockReset()
+    iamSubscriptionMock.setPolicy.mockReset()
+  })
+
   describe('initialize', () => {
     it('creates topic unless exists', async () => {
       topicMock.exists.mockResolvedValue([false])
@@ -294,22 +306,24 @@ describe('Subscriber', () => {
     })
 
     it('unacknowledges message if processing fails', async () => {
-      subscriber.start(() => {
-        throw new Error('Something wrong')
-      })
+      subscriber.start(() => Promise.reject('Something wrong'))
 
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(messageMock.nack).toHaveBeenCalled()
     })
 
-    it('restarts subscription on error', async () => {
-      subscriber.start(Promise.resolve)
+    // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
+    // automatically
+    //
+    // eslint-disable-next-line jest/no-commented-out-tests
+    // it('restarts subscription on error', async () => {
+    //   subscriber.start(() => Promise.resolve())
 
-      await subscriptionMock.emitError(new Error('boom'))
+    //   await subscriptionMock.emitError(new Error('boom'))
 
-      expect(subscriptionMock.close).toHaveBeenCalled()
-      expect(subscriptionMock.open).toHaveBeenCalled()
-    })
+    //   expect(subscriptionMock.close).toHaveBeenCalled()
+    //   expect(subscriptionMock.open).toHaveBeenCalled()
+    // })
   })
 })

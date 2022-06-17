@@ -16,7 +16,10 @@
   },
   "devDependencies": {
     "conventional-changelog-conventionalcommits": "^5.0.0",
-    "semantic-release": "^18.0.1",
+    "semantic-release": "^19.0.3",
     "semantic-release-monorepo": "^7.0.5"
+  },
+  "resolutions": {
+    "@semantic-release/npm": "8.0.3"
   }
 }

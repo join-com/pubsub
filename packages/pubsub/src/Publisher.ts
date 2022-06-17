@@ -25,7 +25,6 @@ export class Publisher<T = unknown> {
 
   private async initializeTopic() {
     const [exist] = await this.topic.exists()
-    console.log('here ->')
     this.logger?.info(`PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`)
 
     if (!exist) {

@@ -1,6 +1,4 @@
-import { PubSub } from '@google-cloud/pubsub'
-import { mocked } from 'jest-mock'
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
@@ -54,7 +52,7 @@ export interface ITopicMockOption {
 export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
-  publishJSON: jest.fn(),
+  publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
 })
@@ -63,15 +61,14 @@ export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
 }
 
-export const getClientMock = ({ topicMock }: IClientMockOption = {}) =>
-  mocked<PubSub>({
-    topic: jest.fn(() => topicMock),
-  } as PubSub)
+export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
+  topic: jest.fn(() => topicMock),
+})
 
 export interface IMessageMock {
   data: Buffer
-  ack: jest.Mock<unknown, unknown>
-  nack: jest.Mock<unknown, unknown>
+  ack: jest.Mock<unknown, any>
+  nack: jest.Mock<unknown, any>
 }
 
 export const getMessageMock = (data: unknown): IMessageMock => {

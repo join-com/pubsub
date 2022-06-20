@@ -2,7 +2,7 @@
   "license": "UNLICENSED",
   "private": true,
   "workspaces": [
-    "packages/pubsub"
+    "packages/*"
   ],
   "scripts": {
     "build": "yarn workspaces run build",

@@ -5,7 +5,6 @@
   "author": "JOIN Solutions",
   "license": "UNLICENSED",
   "main": "./dist/index.js",
-  "types": "./lib/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/join-com/pubsub.git"

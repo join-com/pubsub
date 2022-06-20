@@ -1,0 +1,45 @@
+{
+  "name": "@join-private/pubsub-legacy-factories",
+  "version": "0.0.0-development",
+  "description": "Publisher and Subscriber factories with interfaces from v0.x",
+  "author": "JOIN Solutions",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/join-com/pubsub.git"
+  },
+  "keywords": [
+    "gcloud",
+    "pubsub"
+  ],
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.prod.json",
+    "test": "echo no tests",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --collect-coverage",
+    "lint": "yarn lint:tsc && yarn lint:eslint",
+    "lint:eslint": "eslint . --ext .ts --max-warnings 0",
+    "lint:tsc": "tsc --noEmit",
+    "prepublishOnly": "yarn lint && yarn build"
+  },
+  "dependencies": {
+    "@join-com/pubsub": "^2.0.1"
+  },
+  "devDependencies": {
+    "@google-cloud/pubsub": "^3.0.1",
+    "@join-private/eslint-config-backend": "^1.1.2",
+    "@types/jest": "^28.1.2",
+    "@types/node": "^18.0.0",
+    "eslint": "^8.17.0",
+    "jest": "^28.1.1",
+    "jest-extended": "^2.0.0",
+    "jest-watch-typeahead": "^1.1.0",
+    "prettier": "^2.7.1",
+    "ts-jest": "^28.0.5",
+    "typescript": "^4.7.3"
+  }
+}

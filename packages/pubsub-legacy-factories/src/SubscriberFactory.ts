@@ -1,7 +1,7 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { ISubscriptionOptions, Subscriber } from '@join-com/pubsub'
 
-type SubscriberInitializer<T> = (subscriptionName: string, options?: ISubscriptionOptions) => Subscriber<T>
+export type SubscriberInitializer<T> = (subscriptionName: string, options?: ISubscriptionOptions) => Subscriber<T>
 
 export class SubscriberFactory {
   constructor(readonly options?: ISubscriptionOptions, readonly client: PubSub = new PubSub()) {}

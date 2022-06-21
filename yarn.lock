@@ -738,6 +738,13 @@
     "@types/yargs" "^17.0.8"
     chalk "^4.0.0"
 
+"@join-com/pubsub@^2.0.2":
+  version "2.0.2"
+  resolved "https://registry.npmjs.org/@join-com/pubsub/-/pubsub-2.0.2.tgz#03ba4143d0028a342ba3a0085330112620a24634"
+  integrity sha512-cLvwQ0pCiCBFKWEI6kh59Qlc+FGKv3XDxRkLaBKY/tEZHGkuQVMbfuo1/b67lmOS/5YfqXbU5DdKB4uUqhTiyA==
+  dependencies:
+    "@google-cloud/pubsub" "^3.0.1"
+
 "@join-private/eslint-config-backend@^1.1.2":
   version "1.1.2"
   resolved "https://registry.npmjs.org/@join-private/eslint-config-backend/-/eslint-config-backend-1.1.2.tgz#a171e4a6c4714032e635c1873c7a5b1a850f03af"

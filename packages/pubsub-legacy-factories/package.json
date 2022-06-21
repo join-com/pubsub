@@ -27,7 +27,7 @@
     "prepublishOnly": "yarn lint && yarn build"
   },
   "dependencies": {
-    "@join-com/pubsub": "^2.0.1"
+    "@join-com/pubsub": "^2.0.2"
   },
   "devDependencies": {
     "@google-cloud/pubsub": "^3.0.1",

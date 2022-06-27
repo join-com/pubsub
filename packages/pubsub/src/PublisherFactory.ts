@@ -11,7 +11,7 @@ export interface IPublisher<T> {
 export class PublisherFactory<T> {
   private readonly client: PubSub
 
-  constructor(private readonly logger?: ILogger) {
+  constructor(private readonly logger: ILogger) {
     this.client = new PubSub()
   }
 

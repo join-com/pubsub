@@ -6,7 +6,7 @@ export type SubscriberInitializer<T> = (subscriptionName: string, options?: ISub
 export class SubscriberFactory {
   private readonly client: PubSub
 
-  constructor(readonly options?: ISubscriptionOptions, private readonly logger?: ILogger) {
+  constructor(readonly options: ISubscriptionOptions, private readonly logger: ILogger) {
     this.client = new PubSub()
   }
 

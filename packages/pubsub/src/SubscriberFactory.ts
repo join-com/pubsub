@@ -12,7 +12,7 @@ export interface ISubscriber<T> {
 export class SubscriberFactory<T> {
   private readonly client: PubSub
 
-  constructor(private readonly defaultOptions: ISubscriptionOptions, private readonly logger?: ILogger) {
+  constructor(private readonly defaultOptions: ISubscriptionOptions, private readonly logger: ILogger) {
     this.client = new PubSub()
   }
 

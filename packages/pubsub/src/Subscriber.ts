@@ -105,7 +105,7 @@ export class Subscriber<T = unknown> {
       id: message.id,
       ackId: message.ackId,
       attributes: message.attributes,
-      publishTime: message.publishTime,
+      publishTime: message.publishTime?.toISOString(),
       received: message.received,
       deliveryAttempt: message.deliveryAttempt,
     }

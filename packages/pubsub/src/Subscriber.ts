@@ -129,13 +129,13 @@ export class Subscriber<T = unknown> {
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {
         message.nack()
-        this.logger?.error('PubSub: Failed to process message', e)
+        this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to process message:`, e)
       })
     }
   }
 
   private processError = (error: unknown) => {
-    this.logger?.warn('Subscriber failed with error', error)
+    this.logger?.warn(`Subscription ${this.subscriptionName} failed with error`, error)
 
     // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
     // automatically

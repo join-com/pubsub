@@ -7,7 +7,6 @@ export const createCallOptions: CallOptions = {
       initialRetryDelayMillis: 1000,
       retryDelayMultiplier: 2,
       maxRetryDelayMillis: 10000,
-      initialRpcTimeoutMillis: 10000
-    }
-  }
+    },
+  },
 }

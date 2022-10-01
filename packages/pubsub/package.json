@@ -27,7 +27,7 @@
     "prepublishOnly": "yarn lint && yarn build"
   },
   "dependencies": {
-    "@google-cloud/pubsub": "^3.0.1"
+    "@google-cloud/pubsub": "^3.2.0"
   },
   "devDependencies": {
     "@join-private/eslint-config-backend": "^1.1.2",

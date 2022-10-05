@@ -23,6 +23,11 @@ export class Publisher<T = unknown> {
     this.logger?.info(`PubSub: Message sent for topic: ${this.topicName}:`, { data, messageId })
   }
 
+  public async flush(): Promise<void> {
+    this.logger?.info(`PubSub: Flushing messages for topic: ${this.topicName}:`)
+    await this.topic.flush()
+  }
+
   private async initializeTopic() {
     const [exist] = await this.topic.exists()
     this.logger?.info(`PubSub: Topic ${this.topicName} ${exist ? 'exists' : 'does not exist'}`)

@@ -5,7 +5,7 @@ import { ILogger } from './ILogger'
 export class Publisher<T = unknown> {
   private readonly topic: Topic
 
-  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
+  constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger) {
     this.topic = client.topic(topicName)
   }
 
@@ -21,6 +21,11 @@ export class Publisher<T = unknown> {
   public async publishMsg(data: T): Promise<void> {
     const messageId = await this.topic.publishMessage({ json: data })
     this.logger?.info(`PubSub: Message sent for topic: ${this.topicName}:`, { data, messageId })
+  }
+
+  public async flush(): Promise<void> {
+    this.logger?.info(`PubSub: Flushing messages for topic: ${this.topicName}:`)
+    await this.topic.flush()
   }
 
   private async initializeTopic() {

@@ -57,4 +57,12 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
     })
   })
+
+  describe('flush', () => {
+    it('flushes topic messages', async () => {
+      await publisher.flush()
+
+      expect(topicMock.flush).toHaveBeenCalled()
+    })
+  })
 })

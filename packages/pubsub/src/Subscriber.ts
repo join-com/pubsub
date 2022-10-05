@@ -100,6 +100,11 @@ export class Subscriber<T = unknown> {
     this.logger?.info(`PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`)
   }
 
+  public async stop(): Promise<void> {
+    this.logger?.info(`PubSub: Closing subscription ${this.subscriptionName}`)
+    await this.subscription.close()
+  }
+
   private logMessage(message: Message, dataParsed: T) {
     const messageInfo = {
       id: message.id,

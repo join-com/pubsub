@@ -52,6 +52,7 @@ export interface ITopicMockOption {
 export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {}) => ({
   exists: jest.fn(),
   create: jest.fn(),
+  flush: jest.fn(),
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,

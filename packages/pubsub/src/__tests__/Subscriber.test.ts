@@ -312,18 +312,13 @@ describe('Subscriber', () => {
 
       expect(messageMock.nack).toHaveBeenCalled()
     })
+  })
 
-    // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
-    // automatically
-    //
-    // eslint-disable-next-line jest/no-commented-out-tests
-    // it('restarts subscription on error', async () => {
-    //   subscriber.start(() => Promise.resolve())
+  describe('stop', () => {
+    it('closes subscription', async () => {
+      await subscriber.stop()
 
-    //   await subscriptionMock.emitError(new Error('boom'))
-
-    //   expect(subscriptionMock.close).toHaveBeenCalled()
-    //   expect(subscriptionMock.open).toHaveBeenCalled()
-    // })
+      expect(subscriptionMock.close).toHaveBeenCalled()
+    })
   })
 })

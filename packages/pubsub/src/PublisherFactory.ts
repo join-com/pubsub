@@ -6,6 +6,7 @@ export interface IPublisher<T> {
   topicName: string
   initialize: () => Promise<void>
   publishMsg: (data: T) => Promise<void>
+  flush: () => Promise<void>
 }
 
 export class PublisherFactory<T> {

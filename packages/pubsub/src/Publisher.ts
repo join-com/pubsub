@@ -5,7 +5,7 @@ import { ILogger } from './ILogger'
 export class Publisher<T = unknown> {
   private readonly topic: Topic
 
-  constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger) {
+  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
     this.topic = client.topic(topicName)
   }
 

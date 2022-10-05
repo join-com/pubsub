@@ -141,13 +141,6 @@ export class Subscriber<T = unknown> {
 
   private processError = (error: unknown) => {
     this.logger?.warn(`Subscription ${this.subscriptionName} failed with error`, error)
-
-    // Commented to validate if it's still needed. In case of connection errors subscriber supposed to reconnect
-    // automatically
-    //
-    // await this.subscription.close()
-    // this.subscription.open()
-    // this.logger?.info(`Reopened subscription ${this.subscriptionName} after error`, { error, })
   }
 
   private async initializeTopic(topicName: string, topic: Topic) {

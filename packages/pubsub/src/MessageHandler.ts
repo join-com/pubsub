@@ -15,4 +15,8 @@ export abstract class MessageHandler<T = unknown> {
   public async initialize() {
     await this.subscriber.initialize()
   }
+
+  public async stop() {
+    await this.subscriber.stop()
+  }
 }

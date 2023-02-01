@@ -30,7 +30,7 @@
     "@join-com/pubsub": "^2.0.2"
   },
   "devDependencies": {
-    "@google-cloud/pubsub": "^3.0.1",
+    "@google-cloud/pubsub": "^3.3.0",
     "@join-private/eslint-config-backend": "^1.1.2",
     "@types/jest": "^28.1.2",
     "@types/node": "^18.0.0",

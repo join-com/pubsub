@@ -63,7 +63,7 @@ export class Publisher<T = unknown> {
   private async getTopicType(topic: Topic) {
     // const schemaName = topic.metadata?.schemaSettings?.schema
     const metadata = await topic.getMetadata()
-    const schemaName = metadata[0].schemaSettings?.schema
+    const schemaName = metadata?.[0].schemaSettings?.schema
     if (!schemaName) {
       return undefined
     }

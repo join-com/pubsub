@@ -1,11 +1,16 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { createCallOptions } from '../../src/createCallOptions'
-import { Publisher } from '../../src/Publisher'
-import { getClientMock, getTopicMock } from './support/pubsubMock'
+import * as avro from 'avsc'
+import { Schema } from 'avsc'
+import { createCallOptions } from '../createCallOptions'
+import { Publisher } from '../Publisher'
+import { getClientMock, getTopicMock, SCHEMA_DEFINITION_EXAMPLE } from './support/pubsubMock'
+
 
 const topic = 'topic-name'
 const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
+const type = avro.Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema)
+
 
 describe('Publisher', () => {
   let publisher: Publisher
@@ -16,6 +21,7 @@ describe('Publisher', () => {
 
   afterEach(() => {
     clientMock.topic.mockClear()
+    clientMock.schema.mockClear()
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
     topicMock.publishMessage.mockReset()
@@ -39,9 +45,29 @@ describe('Publisher', () => {
       expect(topicMock.create).not.toHaveBeenCalled()
       expect(clientMock.topic).toHaveBeenCalledWith(topic)
     })
+
+    it('gets schema when metadata is specified', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+
+      await publisher.initialize()
+
+      expect(topicMock.create).not.toHaveBeenCalled()
+      expect(clientMock.schema).toHaveBeenCalled()
+    })
+
+    it('does not get schema when metadata is not specified', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue(undefined)
+
+      await publisher.initialize()
+
+      expect(clientMock.schema).not.toHaveBeenCalled()
+      expect(topicMock.create).not.toHaveBeenCalled()
+    })
   })
 
-  describe('publishMsg', () => {
+  describe('publishMsg on topic without schema', () => {
     const message = { id: 1 }
 
     it('publishes json object with trace info', async () => {
@@ -55,6 +81,21 @@ describe('Publisher', () => {
       await publisher.publishMsg(array)
 
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
+    })
+  })
+
+  describe('publishMsg on topic with schema', () => {
+    const message = { first: 'one', second: 'two' }
+    const avroMessage = type.toBuffer(message)
+
+    it('publishes avro binary encoded object with trace info', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      await publisher.initialize()
+
+      await publisher.publishMsg(message)
+
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage })
     })
   })
 

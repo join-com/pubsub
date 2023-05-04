@@ -2,6 +2,31 @@
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
+export const SCHEMA_DEFINITION_EXAMPLE = {
+  'type': 'record',
+  'name': 'Avro',
+  'fields': [
+    {
+      'name': 'first',
+      'type': 'string'
+    },
+    {
+      'name': 'second',
+      'type': 'string',
+      'default': ''
+    },
+    {
+      'name': 'third',
+      'type': [
+        'null',
+        'string'
+      ],
+      'default': null
+    }
+  ]
+}
+const SCHEMA_EXAMPLE = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}
+
 export const getIamMock = () => ({
   setPolicy: jest.fn(),
 })
@@ -59,12 +84,17 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   getMetadata: jest.fn()
 })
 
+export const schemaMock = {
+  get: jest.fn(() => Promise.resolve(SCHEMA_EXAMPLE)),
+}
+
 export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
 }
 
 export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
   topic: jest.fn(() => topicMock),
+  schema: jest.fn(() => schemaMock)
 })
 
 export interface IMessageMock {

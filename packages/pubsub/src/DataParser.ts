@@ -7,6 +7,6 @@ export class DataParser {
       }
       return value
     }
-    return JSON.parse(data.toString(), dateTimeReviver)
+    return JSON.parse(data, dateTimeReviver)
   }
 }

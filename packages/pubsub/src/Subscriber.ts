@@ -1,4 +1,4 @@
-import { IAM, Message, Subscription, Topic, PubSub, SubscriptionOptions } from '@google-cloud/pubsub'
+import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
@@ -47,7 +47,7 @@ interface ISubscriptionInitializationOptions {
   retryPolicy: ISubscriptionRetryPolicy
 }
 
-export class Subscriber<T = unknown> extends TopicHandler{
+export class Subscriber<T = unknown> extends TopicHandler {
   readonly topicName: string
   readonly subscriptionName: string
 
@@ -130,10 +130,25 @@ export class Subscriber<T = unknown> extends TopicHandler{
   private parseData(message: Message): T {
     let data: string
     if (this.avroType) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data = this.avroType.fromBuffer(message.data)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data = this.avroType.fromBuffer(message.data)
+      } catch (e) {
+        if (this.avroType) {
+          throw e
+        }
+        //reload the topic to try reprocessing with schema if it was updated
+        this.topic = this.client.topic(this.topicName)
+        this.getTopicType()
+          .then(type => {this.avroType = type})
+          .catch(error => {this.logger?.error('Can not load topic schema type', error)})
+        throw e
+      }
     } else {
       data = message.data.toString()
+    }
+    if (!data) {
+      throw new Error()
     }
     const dataParser = new DataParser()
     const dataParsed = dataParser.parse(data) as T

@@ -1,7 +1,9 @@
 import { IAM, Message, Subscription, Topic, PubSub, SubscriptionOptions } from '@google-cloud/pubsub'
+import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
+import { TopicHandler } from './TopicHandler'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -45,30 +47,26 @@ interface ISubscriptionInitializationOptions {
   retryPolicy: ISubscriptionRetryPolicy
 }
 
-export class Subscriber<T = unknown> {
+export class Subscriber<T = unknown> extends TopicHandler{
   readonly topicName: string
   readonly subscriptionName: string
 
-  private readonly topic: Topic
   private readonly subscription: Subscription
 
   private readonly deadLetterTopicName?: string
-  private readonly deadLetterSubscriptionName?: string
-
-  private readonly deadLetterTopic?: Topic
-  private readonly deadLetterSubscription?: Subscription
+  private avroType: Type | undefined
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
     pubSubClient: PubSub,
     private readonly logger?: ILogger,
   ) {
+    super(pubSubClient, subscriberOptions.topicName)
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
     this.topicName = topicName
     this.subscriptionName = subscriptionName
 
-    this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
 
     if (this.isDeadLetterPolicyEnabled()) {
@@ -80,13 +78,21 @@ export class Subscriber<T = unknown> {
     }
   }
 
+  private readonly deadLetterSubscriptionName?: string
+  private readonly deadLetterTopic?: Topic
+
+  private readonly deadLetterSubscription?: Subscription
+
   public async initialize() {
     try {
       await this.initializeTopic(this.topicName, this.topic)
+
       await this.initializeDeadLetterTopic()
 
       await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
       await this.initializeDeadLetterSubscription()
+
+      this.avroType = await this.getTopicType()
     } catch (e) {
       this.logger?.error(`PubSub: Failed to initialize subscriber ${this.subscriptionName}`, e)
       process.abort()
@@ -122,8 +128,15 @@ export class Subscriber<T = unknown> {
   }
 
   private parseData(message: Message): T {
+    let data: string
+    if (this.avroType) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data = this.avroType.fromBuffer(message.data)
+    } else {
+      data = message.data.toString()
+    }
     const dataParser = new DataParser()
-    const dataParsed = dataParser.parse(message.data) as T
+    const dataParsed = dataParser.parse(data) as T
     this.logMessage(message, dataParsed)
     return dataParsed
   }

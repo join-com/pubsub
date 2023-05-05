@@ -1,22 +1,21 @@
-import { PubSub, Topic } from '@google-cloud/pubsub'
+import { PubSub } from '@google-cloud/pubsub'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
-import * as avro from 'avsc'
-import { Schema, Type } from 'avsc'
+import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
+import { TopicHandler } from './TopicHandler'
 
-export class Publisher<T = unknown> {
-  private topic: Topic
+export class Publisher<T = unknown> extends TopicHandler {
   private avroType: Type | undefined
 
-  constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger) {
-    this.topic = client.topic(topicName)
+  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
+    super(client, topicName)
   }
 
   public async initialize() {
     try {
       await this.initializeTopic()
-      this.avroType = await this.getTopicType(this.topic)
+      this.avroType = await this.getTopicType()
     } catch (e) {
       this.logger?.error('PubSub: Failed to initialize publisher', e)
       process.abort()
@@ -33,7 +32,7 @@ export class Publisher<T = unknown> {
         //it's a corner case when application started without topic schema, and then schema was added to the topic
         //in this case we are trying to get again topic data and resend with the schema if it's appeared
         this.topic = this.client.topic(this.topic.name)
-        this.avroType = await this.getTopicType(this.topic)
+        this.avroType = await this.getTopicType()
         if (!this.avroType) {
           throw e
         }
@@ -58,22 +57,6 @@ export class Publisher<T = unknown> {
       await this.topic.create(createCallOptions)
       this.logger?.info(`PubSub: Topic ${this.topicName} is created`)
     }
-  }
-
-  private async getTopicType(topic: Topic) {
-    // const schemaName = topic.metadata?.schemaSettings?.schema
-    const metadata = await topic.getMetadata()
-    const schemaName = metadata?.[0].schemaSettings?.schema
-    if (!schemaName) {
-      return undefined
-    }
-    const topicSchema = await this.client.schema(schemaName).get()
-    if (!topicSchema.definition) {
-      return undefined
-    }
-
-    const schema = JSON.parse(topicSchema.definition) as Schema
-    return avro.Type.forSchema(schema)
   }
 
   private async sendAvroMessage(data: T) {

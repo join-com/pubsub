@@ -130,25 +130,10 @@ export class Subscriber<T = unknown> extends TopicHandler {
   private parseData(message: Message): T {
     let data: string
     if (this.avroType) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        data = this.avroType.fromBuffer(message.data)
-      } catch (e) {
-        if (this.avroType) {
-          throw e
-        }
-        //reload the topic to try reprocessing with schema if it was updated
-        this.topic = this.client.topic(this.topicName)
-        this.getTopicType()
-          .then(type => {this.avroType = type})
-          .catch(error => {this.logger?.error('Can not load topic schema type', error)})
-        throw e
-      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data = this.avroType.fromBuffer(message.data)
     } else {
       data = message.data.toString()
-    }
-    if (!data) {
-      throw new Error()
     }
     const dataParser = new DataParser()
     const dataParsed = dataParser.parse(data) as T
@@ -158,7 +143,24 @@ export class Subscriber<T = unknown> extends TopicHandler {
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     return (message: Message) => {
-      const dataParsed = this.parseData(message)
+      let dataParsed
+      try {
+        dataParsed = this.parseData(message)
+      } catch (e) {
+        this.logger?.error(`Couldn't parse message: ${JSON.stringify(message)}`)
+        //reload the topic to try reprocessing with schema if it was updated
+        if (!this.avroType) {
+          this.topic = this.client.topic(this.topicName)
+          this.getTopicType()
+            .then(type => {
+              this.avroType = type
+            })
+            .catch(error => {
+              this.logger?.error('Can not load topic schema type', error)
+            })
+        }
+        throw e
+      }
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {
         message.nack()

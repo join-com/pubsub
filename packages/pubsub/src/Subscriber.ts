@@ -147,7 +147,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
       try {
         dataParsed = this.parseData(message)
       } catch (e) {
-        this.logger?.error(`Couldn't parse message: ${JSON.stringify(message)}`)
+        this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
         //reload the topic to try reprocessing with schema if it was updated
         if (!this.avroType) {
           this.topic = this.client.topic(this.topicName)

@@ -1,6 +1,8 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { createCallOptions } from '../../src/createCallOptions'
-import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../../src/Subscriber'
+import { Schema } from 'avsc'
+import * as avro from 'avsc'
+import { createCallOptions } from '../createCallOptions'
+import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
 import {
   getClientMock,
   getIamMock,
@@ -8,6 +10,7 @@ import {
   getSubscriptionMock,
   getTopicMock,
   IMessageMock,
+  SCHEMA_DEFINITION_EXAMPLE,
 } from './support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -18,6 +21,7 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
+const type = avro.Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema)
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
@@ -36,6 +40,7 @@ describe('Subscriber', () => {
 
   afterEach(() => {
     clientMock.topic.mockClear()
+    clientMock.schema.mockClear()
     topicMock.subscription.mockClear()
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
@@ -286,6 +291,7 @@ describe('Subscriber', () => {
 
   describe('start', () => {
     const data = { id: 1, createdAt: new Date() }
+    const avroData = { first: 'one', second: 'two', third: null }
 
     let messageMock: IMessageMock
 
@@ -303,6 +309,26 @@ describe('Subscriber', () => {
       await subscriptionMock.receiveMessage(messageMock)
 
       expect(parsedMessage?.dataParsed).toEqual(data)
+    })
+
+    it('receives avro parsed data', async () => {
+      topicMock.exists.mockResolvedValue([false])
+      subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+
+      await subscriber.initialize()
+
+      messageMock.data = type.toBuffer(avroData)
+
+      let parsedMessage: IParsedMessage<unknown> | undefined
+      subscriber.start(msg => {
+        parsedMessage = msg
+        return Promise.resolve()
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+
+      expect(parsedMessage?.dataParsed).toEqual(avroData)
     })
 
     it('unacknowledges message if processing fails', async () => {

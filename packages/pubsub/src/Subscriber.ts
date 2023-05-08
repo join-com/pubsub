@@ -144,13 +144,16 @@ export class Subscriber<T = unknown> extends TopicHandler {
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
     return (message: Message) => {
       let dataParsed
+      //TODO: try catch should be removed after all topics will start using avro
       try {
         dataParsed = this.parseData(message)
       } catch (e) {
         this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
-        //reload the topic to try reprocessing with schema if it was updated
+        //reload the topic to correctly process next message, if there was no schema
         if (!this.avroType) {
           this.topic = this.client.topic(this.topicName)
+          // we have to do it this way because processMsg is not async in our library
+          // and if we add async everywhere we will have to change current library API
           this.getTopicType()
             .then(type => {
               this.avroType = type

@@ -1,4 +1,4 @@
-import * as util from 'util'
+import { callbackify } from 'util'
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
@@ -105,7 +105,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
     // to run async in function returned by this.processMsg
 
     const subscriberCallback = (message: Message) => {
-      util.callbackify(async (callbackifyMessage: Message) => {
+      callbackify(async (callbackifyMessage: Message) => {
         return await this.processMsg(asyncCallback)(callbackifyMessage)
       })(message, (_: object) =>{return});
     }

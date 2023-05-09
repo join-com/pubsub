@@ -1,3 +1,4 @@
+import * as util from 'util'
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
@@ -100,8 +101,17 @@ export class Subscriber<T = unknown> extends TopicHandler {
   }
 
   public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
+    // subscription.on doesn't support async, so we need this wrapper
+    // to run async in function returned by this.processMsg
+
+    const subscriberCallback = (message: Message) => {
+      util.callbackify(async (callbackifyMessage: Message) => {
+        return await this.processMsg(asyncCallback)(callbackifyMessage)
+      })(message, (_: object) =>{return});
+    }
+
     this.subscription.on('error', this.processError)
-    this.subscription.on('message', this.processMsg(asyncCallback))
+    this.subscription.on('message', subscriberCallback)
 
     this.logger?.info(`PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`)
   }
@@ -128,41 +138,33 @@ export class Subscriber<T = unknown> extends TopicHandler {
   }
 
   private parseData(message: Message): T {
-    let data: string
-    if (this.avroType) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data = this.avroType.fromBuffer(message.data)
-    } else {
-      data = message.data.toString()
-    }
+    let dataParsed: T
     const dataParser = new DataParser()
-    const dataParsed = dataParser.parse(data) as T
+    if (this.avroType) {
+      const dataParsedWithNulls = this.avroType.fromBuffer(message.data) as T
+      dataParsed = dataParser.replaceNullsWithUndefined(dataParsedWithNulls)
+    } else {
+      dataParsed = dataParser.parse(message.data) as T
+    }
     this.logMessage(message, dataParsed)
     return dataParsed
   }
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
-    return (message: Message) => {
+    return async (message: Message) => {
       let dataParsed
       //TODO: try catch should be removed after all topics will start using avro
       try {
         dataParsed = this.parseData(message)
       } catch (e) {
         this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
-        //reload the topic to correctly process next message, if there was no schema
-        if (!this.avroType) {
-          this.topic = this.client.topic(this.topicName)
-          // we have to do it this way because processMsg is not async in our library
-          // and if we add async everywhere we will have to change current library API
-          this.getTopicType()
-            .then(type => {
-              this.avroType = type
-            })
-            .catch(error => {
-              this.logger?.error('Can not load topic schema type', error)
-            })
+        //if there is a schema, throw error, as we can't fix it, otherwise try to load schema and parse again
+        if (this.avroType) {
+         throw e
         }
-        throw e
+        this.topic = this.client.topic(this.topicName)
+        this.avroType = await this.getTopicType()
+        dataParsed = this.parseData(message)
       }
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {

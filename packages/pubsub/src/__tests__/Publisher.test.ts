@@ -1,22 +1,22 @@
 import { PubSub } from '@google-cloud/pubsub'
-import * as avro from 'avsc'
-import { Schema } from 'avsc'
+import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
+import { DateType } from '../logical-types/DateType'
 import { Publisher } from '../Publisher'
-import { getClientMock, getTopicMock, SCHEMA_DEFINITION_EXAMPLE } from './support/pubsubMock'
+import { ConsoleLogger, getClientMock, getTopicMock, SCHEMA_DEFINITION_EXAMPLE } from './support/pubsubMock'
 
 
 const topic = 'topic-name'
 const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
-const type = avro.Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema)
+const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 
 
 describe('Publisher', () => {
   let publisher: Publisher
 
   beforeEach(() => {
-    publisher = new Publisher(topic, clientMock as unknown as PubSub)
+    publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())
   })
 
   afterEach(() => {
@@ -58,7 +58,7 @@ describe('Publisher', () => {
 
     it('does not get schema when metadata is not specified', async () => {
       topicMock.exists.mockResolvedValue([true])
-      topicMock.getMetadata.mockResolvedValue(undefined)
+      topicMock.getMetadata.mockResolvedValue([])
 
       await publisher.initialize()
 
@@ -85,7 +85,7 @@ describe('Publisher', () => {
   })
 
   describe('publishMsg on topic with schema', () => {
-    const message = { first: 'one', second: 'two' }
+    const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = type.toBuffer(message)
 
     it('publishes avro binary encoded object with trace info', async () => {

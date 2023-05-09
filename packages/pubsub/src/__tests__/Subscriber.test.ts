@@ -1,9 +1,10 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { Schema } from 'avsc'
-import * as avro from 'avsc'
+import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
+import { DateType } from '../logical-types/DateType'
 import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
 import {
+  ConsoleLogger,
   getClientMock,
   getIamMock,
   getMessageMock,
@@ -21,7 +22,7 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
-const type = avro.Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema)
+const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
@@ -35,7 +36,7 @@ describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub)
+    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub, new ConsoleLogger())
   })
 
   afterEach(() => {
@@ -291,7 +292,8 @@ describe('Subscriber', () => {
 
   describe('start', () => {
     const data = { id: 1, createdAt: new Date() }
-    const avroData = { first: 'one', second: 'two', third: null }
+    const avroData = { first: 'one', second: 'two', third: undefined,
+      createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)')}
 
     let messageMock: IMessageMock
 

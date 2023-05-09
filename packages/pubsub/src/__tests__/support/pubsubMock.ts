@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ILogger } from '../../ILogger'
+
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
@@ -14,6 +16,10 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
       'name': 'second',
       'type': 'string',
       'default': ''
+    },
+    {
+      'name': 'createdAt',
+      'type': {type: 'long', logicalType: 'timestamp-micros'}
     },
     {
       'name': 'third',
@@ -81,7 +87,7 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
-  getMetadata: jest.fn()
+  getMetadata: jest.fn().mockResolvedValue([])
 })
 
 export const schemaMock = {
@@ -109,5 +115,22 @@ export const getMessageMock = (data: unknown): IMessageMock => {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
+  }
+}
+
+export class ConsoleLogger implements ILogger {
+  error(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
+  }
+
+  info(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
+  }
+
+  warn(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
   }
 }

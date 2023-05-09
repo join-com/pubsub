@@ -1,6 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub'
-import { Schema } from 'avsc'
-import * as avro from 'avsc'
+import { Schema, Type } from 'avsc'
+import { DateType } from './logical-types/DateType'
 
 export class TopicHandler {
 
@@ -12,10 +12,9 @@ export class TopicHandler {
     this.topic = client.topic(topicName)
   }
 
-  protected async getTopicType() {
-    // const schemaName = topic.metadata?.schemaSettings?.schema
-    const metadata = await this.topic.getMetadata()
-    const schemaName = metadata?.[0].schemaSettings?.schema
+  protected async getTopicType(): Promise<Type | undefined> {
+    const [metadata] = await this.topic.getMetadata()
+    const schemaName = metadata?.schemaSettings?.schema
     if (!schemaName) {
       return undefined
     }
@@ -25,6 +24,6 @@ export class TopicHandler {
     }
 
     const schema = JSON.parse(topicSchema.definition) as Schema
-    return avro.Type.forSchema(schema)
+    return Type.forSchema(schema,  {logicalTypes: {'timestamp-micros': DateType}})
   }
 }

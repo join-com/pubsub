@@ -18,11 +18,11 @@ export class DataParser {
   private deepReplaceInObject(obj: Record<string, unknown>)  {
     for (const key in obj) {
       if (obj[key] === null) {
-        obj[key] = undefined;
+        obj[key] = undefined
       } else if (Array.isArray(obj[key])) {
-        (obj[key] as Record<string, unknown>[]).forEach(member => this.deepReplaceInObject(member));
+        (obj[key] as Record<string, unknown>[]).forEach(member => this.deepReplaceInObject(member))
       } else if (typeof obj[key] === 'object') {
-        this.deepReplaceInObject(obj[key] as Record<string, unknown>);
+        this.deepReplaceInObject(obj[key] as Record<string, unknown>)
       }
     }
   }

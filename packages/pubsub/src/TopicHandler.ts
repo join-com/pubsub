@@ -6,6 +6,7 @@ export class TopicHandler {
 
   protected readonly client: PubSub
   protected topic: Topic
+  protected schemaRevisionId: string | null | undefined
 
   constructor(client: PubSub, topicName: string) {
     this.client = client
@@ -22,7 +23,7 @@ export class TopicHandler {
     if (!topicSchema.definition) {
       return undefined
     }
-
+    this.schemaRevisionId = topicSchema.revisionId
     const schema = JSON.parse(topicSchema.definition) as Schema
     return Type.forSchema(schema,  {logicalTypes: {'timestamp-micros': DateType}})
   }

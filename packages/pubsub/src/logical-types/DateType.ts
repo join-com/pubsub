@@ -10,14 +10,14 @@ import { Type, types } from 'avsc'
  */
 export class DateType extends types.LogicalType {
   _fromValue(val : any) {
-    return new Date(val / 1000);
+    return new Date(val / 1000)
   }
   _toValue(date: any) {
-    return date instanceof Date ? date.getTime() * 1000 : undefined;
+    return date instanceof Date ? date.getTime() * 1000 : undefined
   }
   _resolve(type: Type) {
     if (Type.isType(type, 'logical:timestamp-micros')) {
-      return this._fromValue;
+      return this._fromValue
     }
     return
   }

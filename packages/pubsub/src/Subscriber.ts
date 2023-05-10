@@ -107,7 +107,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
     const subscriberCallback = (message: Message) => {
       callbackify(async (callbackifyMessage: Message) => {
         return await this.processMsg(asyncCallback)(callbackifyMessage)
-      })(message, (_: object) =>{return});
+      })(message, (_: object) =>{return})
     }
 
     this.subscription.on('error', this.processError)
@@ -129,6 +129,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
       deliveryAttempt: message.deliveryAttempt,
+      schemaRevisionId: this.schemaRevisionId
     }
 
     this.logger?.info(
@@ -162,7 +163,6 @@ export class Subscriber<T = unknown> extends TopicHandler {
         if (this.avroType) {
          throw e
         }
-        this.topic = this.client.topic(this.topicName)
         this.avroType = await this.getTopicType()
         dataParsed = this.parseData(message)
       }

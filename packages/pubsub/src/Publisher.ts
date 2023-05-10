@@ -23,14 +23,13 @@ export class Publisher<T = unknown> extends TopicHandler {
   }
 
   public async publishMsg(data: T): Promise<void> {
-    // Later we want to have only topic with specified schema and remove if block below
+    // TODO: Later we want to have only topic with specified schema and remove if block below
     if (!this.avroType) {
       try {
         await this.sendJsonMessage({ json: data })
       } catch (e) {
         //it's a corner case when application started without topic schema, and then schema was added to the topic
         //in this case we are trying to get again topic data and resend with the schema if it's appeared
-        this.topic = this.client.topic(this.topic.name)
         this.avroType = await this.getTopicType()
         if (!this.avroType) {
           throw e
@@ -64,12 +63,12 @@ export class Publisher<T = unknown> extends TopicHandler {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const buffer = this.avroType!.toBuffer(data)
     const messageId = await this.topic.publishMessage({ data: buffer })
-    this.logger?.info(`PubSub: Message sent for topic: ${this.topicName}:`, { data, messageId })
+    this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
 
   }
 
   private async sendJsonMessage(message: MessageOptions) {
     const messageId = await this.topic.publishMessage(message)
-    this.logger?.info(`PubSub: Message sent for topic: ${this.topicName}:`, { message, messageId })
+    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { message, messageId })
   }
 }

@@ -1,10 +1,9 @@
 import { callbackify } from 'util'
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
-import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
-import { TopicHandler } from './TopicHandler'
+import { ISchemaType, TopicHandler } from './TopicHandler'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -48,26 +47,35 @@ interface ISubscriptionInitializationOptions {
   retryPolicy: ISubscriptionRetryPolicy
 }
 
-export class Subscriber<T = unknown> extends TopicHandler {
+export class Subscriber<T = unknown> {
   readonly topicName: string
   readonly subscriptionName: string
 
+  private readonly topic: Topic
   private readonly subscription: Subscription
 
   private readonly deadLetterTopicName?: string
-  private avroType: Type | undefined
+  private readonly deadLetterSubscriptionName?: string
+
+  private readonly deadLetterTopic?: Topic
+  private readonly deadLetterSubscription?: Subscription
+
+  private readonly topicHandler: TopicHandler
+  private topicType: ISchemaType | undefined
+
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
     pubSubClient: PubSub,
     private readonly logger?: ILogger,
   ) {
-    super(pubSubClient, subscriberOptions.topicName)
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
     this.topicName = topicName
     this.subscriptionName = subscriptionName
 
+    this.topic = pubSubClient.topic(topicName)
+    this.topicHandler = new TopicHandler(pubSubClient, this.topic)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
 
     if (this.isDeadLetterPolicyEnabled()) {
@@ -79,11 +87,6 @@ export class Subscriber<T = unknown> extends TopicHandler {
     }
   }
 
-  private readonly deadLetterSubscriptionName?: string
-  private readonly deadLetterTopic?: Topic
-
-  private readonly deadLetterSubscription?: Subscription
-
   public async initialize() {
     try {
       await this.initializeTopic(this.topicName, this.topic)
@@ -93,7 +96,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
       await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
       await this.initializeDeadLetterSubscription()
 
-      this.avroType = await this.getTopicType()
+      this.topicType = await this.topicHandler.getTopicType()
     } catch (e) {
       this.logger?.error(`PubSub: Failed to initialize subscriber ${this.subscriptionName}`, e)
       process.abort()
@@ -129,7 +132,7 @@ export class Subscriber<T = unknown> extends TopicHandler {
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
       deliveryAttempt: message.deliveryAttempt,
-      schemaRevisionId: this.schemaRevisionId
+      schemaRevisionId: this.topicType?.schemaRevisionId
     }
 
     this.logger?.info(
@@ -141,8 +144,8 @@ export class Subscriber<T = unknown> extends TopicHandler {
   private parseData(message: Message): T {
     let dataParsed: T
     const dataParser = new DataParser()
-    if (this.avroType) {
-      const dataParsedWithNulls = this.avroType.fromBuffer(message.data) as T
+    if (this.topicType) {
+      const dataParsedWithNulls = this.topicType.type.fromBuffer(message.data) as T
       dataParsed = dataParser.replaceNullsWithUndefined(dataParsedWithNulls)
     } else {
       dataParsed = dataParser.parse(message.data) as T
@@ -160,10 +163,10 @@ export class Subscriber<T = unknown> extends TopicHandler {
       } catch (e) {
         this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
         //if there is a schema, throw error, as we can't fix it, otherwise try to load schema and parse again
-        if (this.avroType) {
+        if (this.topicType?.type) {
          throw e
         }
-        this.avroType = await this.getTopicType()
+        this.topicType = await this.topicHandler.getTopicType()
         dataParsed = this.parseData(message)
       }
       const messageParsed = Object.assign(message, { dataParsed })

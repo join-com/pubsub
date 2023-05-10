@@ -56,13 +56,13 @@ describe('Publisher', () => {
       expect(clientMock.schema).toHaveBeenCalled()
     })
 
-    it('does not get schema when metadata is not specified', async () => {
+    it('gets validation topic schema when metadata is not specified', async () => {
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
 
       await publisher.initialize()
 
-      expect(clientMock.schema).not.toHaveBeenCalled()
+      expect(clientMock.schema).toHaveBeenCalled()
       expect(topicMock.create).not.toHaveBeenCalled()
     })
   })

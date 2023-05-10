@@ -1,21 +1,29 @@
-import { PubSub } from '@google-cloud/pubsub'
+import { PubSub, Topic } from '@google-cloud/pubsub'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
-import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
-import { TopicHandler } from './TopicHandler'
+import { ISchemaType, TopicHandler } from './TopicHandler'
 
-export class Publisher<T = unknown> extends TopicHandler {
-  private avroType: Type | undefined
+export class Publisher<T = unknown> {
+  private readonly topic: Topic
+  private readonly topicHandler: TopicHandler
+  private topicType: ISchemaType | undefined
+  private validationType: ISchemaType | undefined
+  private readonly validationSchemaName: string
 
   constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
-    super(client, topicName)
+    this.topic = client.topic(topicName)
+    this.validationSchemaName = `report-only-${this.topicName}-generated-avro`
+    this.topicHandler = new TopicHandler(client, this.topic)
   }
 
   public async initialize() {
     try {
       await this.initializeTopic()
-      this.avroType = await this.getTopicType()
+      this.topicType = await this.topicHandler.getTopicType()
+      if (!this.topicType) {
+        this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
+      }
     } catch (e) {
       this.logger?.error('PubSub: Failed to initialize publisher', e)
       process.abort()
@@ -24,22 +32,34 @@ export class Publisher<T = unknown> extends TopicHandler {
 
   public async publishMsg(data: T): Promise<void> {
     // TODO: Later we want to have only topic with specified schema and remove if block below
-    if (!this.avroType) {
+    if (!this.topicType) {
       try {
         await this.sendJsonMessage({ json: data })
       } catch (e) {
         //it's a corner case when application started without topic schema, and then schema was added to the topic
         //in this case we are trying to get again topic data and resend with the schema if it's appeared
-        this.avroType = await this.getTopicType()
-        if (!this.avroType) {
+        this.topicType = await this.topicHandler.getTopicType()
+        if (!this.topicType) {
           throw e
         }
         await this.sendAvroMessage(data)
       }
+      this.logWarnIfMessageViolatesSchema(data)
       return
     }
 
     await this.sendAvroMessage(data)
+  }
+
+  private logWarnIfMessageViolatesSchema(data: T) {
+    if (this.validationType) {
+      try {
+        this.validationType.type.toBuffer(data)
+      } catch (e) {
+        this.logger?.warn('Message violates avro schema that we plan to enforce',
+          {data, schemaName: this.validationSchemaName})
+      }
+    }
   }
 
   public async flush(): Promise<void> {
@@ -61,7 +81,7 @@ export class Publisher<T = unknown> extends TopicHandler {
     //TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
     // for now we are checking that it's not null before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const buffer = this.avroType!.toBuffer(data)
+    const buffer = this.topicType!.type.toBuffer(data)
     const messageId = await this.topic.publishMessage({ data: buffer })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
 

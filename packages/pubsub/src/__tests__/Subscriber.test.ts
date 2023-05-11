@@ -11,7 +11,7 @@ import {
   getSubscriptionMock,
   getTopicMock,
   IMessageMock,
-  SCHEMA_DEFINITION_EXAMPLE,
+  SCHEMA_DEFINITION_EXAMPLE, SCHEMA_EXAMPLE, schemaMock,
 } from './support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -317,6 +317,8 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+
 
       await subscriber.initialize()
 

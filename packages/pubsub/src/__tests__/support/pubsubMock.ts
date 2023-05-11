@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ISchema } from '@google-cloud/pubsub'
 import { ILogger } from '../../ILogger'
 
 type EventHandler = (attrs: unknown) => Promise<unknown>
@@ -31,7 +32,7 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
     }
   ]
 }
-const SCHEMA_EXAMPLE = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}
+export const SCHEMA_EXAMPLE: ISchema = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE), revisionId: 'example'}
 
 export const getIamMock = () => ({
   setPolicy: jest.fn(),
@@ -91,7 +92,7 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
 })
 
 export const schemaMock = {
-  get: jest.fn(() => Promise.resolve(SCHEMA_EXAMPLE)),
+  get: jest.fn(),
 }
 
 export interface IClientMockOption {

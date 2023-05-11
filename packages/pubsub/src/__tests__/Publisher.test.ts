@@ -3,7 +3,14 @@ import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
 import { DateType } from '../logical-types/DateType'
 import { Publisher } from '../Publisher'
-import { ConsoleLogger, getClientMock, getTopicMock, SCHEMA_DEFINITION_EXAMPLE } from './support/pubsubMock'
+import {
+  ConsoleLogger,
+  getClientMock,
+  getTopicMock,
+  SCHEMA_DEFINITION_EXAMPLE,
+  SCHEMA_EXAMPLE,
+  schemaMock,
+} from './support/pubsubMock'
 
 
 const topic = 'topic-name'
@@ -30,6 +37,8 @@ describe('Publisher', () => {
   describe('initialize', () => {
     it('creates unless topic exists', async () => {
       topicMock.exists.mockResolvedValue([false])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
 
       await publisher.initialize()
 

@@ -1,4 +1,3 @@
-import { callbackify } from 'util'
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
@@ -104,17 +103,8 @@ export class Subscriber<T = unknown> {
   }
 
   public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
-    // subscription.on doesn't support async, so we need this wrapper
-    // to run async in function returned by this.processMsg
-
-    const subscriberCallback = (message: Message) => {
-      callbackify(async (callbackifyMessage: Message) => {
-        return await this.processMsg(asyncCallback)(callbackifyMessage)
-      })(message, (_: object) =>{return})
-    }
-
     this.subscription.on('error', this.processError)
-    this.subscription.on('message', subscriberCallback)
+    this.subscription.on('message', this.processMsg(asyncCallback))
 
     this.logger?.info(`PubSub: Subscription ${this.subscriptionName} is started for topic ${this.topicName}`)
   }
@@ -154,8 +144,8 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
-  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
-    return async (message: Message) => {
+  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
+    const asyncMessageProcessor = async (message: Message) => {
       let dataParsed
       //TODO: try catch should be removed after all topics will start using avro
       try {
@@ -164,7 +154,7 @@ export class Subscriber<T = unknown> {
         this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
         //if there is a schema, throw error, as we can't fix it, otherwise try to load schema and parse again
         if (this.topicType?.type) {
-         throw e
+          throw e
         }
         this.topicType = await this.topicHandler.getTopicType()
         dataParsed = this.parseData(message)
@@ -173,6 +163,14 @@ export class Subscriber<T = unknown> {
       asyncCallback(messageParsed).catch(e => {
         message.nack()
         this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to process message:`, e)
+      })
+    }
+
+    return (message: Message) => {
+      asyncMessageProcessor(message).then(_ => {
+        return
+      }).catch(e => {
+        throw e
       })
     }
   }

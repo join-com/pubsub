@@ -16,7 +16,7 @@ export class PublisherFactory<T> {
     this.client = new PubSub()
   }
 
-  public getPublisher<K extends keyof T>(topic: K): IPublisher<T[K]> {
-    return new Publisher(topic.toString(), this.client, this.logger)
+  public getPublisher<K extends keyof T>(topic: K, writerAvroSchema?: string): IPublisher<T[K]> {
+    return new Publisher(topic.toString(), this.client, this.logger, writerAvroSchema)
   }
 }

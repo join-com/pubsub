@@ -24,31 +24,36 @@ describe('TopicHandler', () => {
     topicMock.create.mockReset()
   })
 
-  it('returns undefined when schema not returned from remote', async () => {
-    schemaMock.get.mockResolvedValue({ definition: undefined })
+  describe('getSchemaType', () => {
+    it('returns undefined when schema not returned from remote', async () => {
+      schemaMock.get.mockResolvedValue({ definition: undefined })
 
-    const schemaType = await topicHandler.getSchemaType('some')
-    expect(schemaType).toBeUndefined()
+      const schemaType = await topicHandler.getSchemaType('some')
+      expect(schemaType).toBeUndefined()
+    })
+
+    it('returns schema type when schema is returned from remote', async () => {
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+
+      const schemaType = await topicHandler.getSchemaType('some')
+      expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
+    })
   })
 
-  it('returns schema type when schema is returned from remote', async () => {
-    schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+  describe('getTopicType', () => {
+    it('returns undefined when schema is not specified on the topic', async () => {
+      topicMock.getMetadata.mockResolvedValue([])
+      const schemaType = await topicHandler.getTopicType()
+      expect(schemaType).toBeUndefined()
+    })
 
-    const schemaType = await topicHandler.getSchemaType('some')
-    expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
-  })
 
-  it('returns undefined when schema is not specified on the topic', async () => {
-    const schemaType = await topicHandler.getTopicType()
-    expect(schemaType).toBeUndefined()
+    it('returns topic type when schema is specified on the topic', async () => {
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
 
-  })
-
-  it('returns topic type when schema is specified on the topic', async () => {
-    schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
-    topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
-
-    const schemaType = await topicHandler.getSchemaType('some')
-    expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
+      const schemaType = await topicHandler.getSchemaType('some')
+      expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
+    })
   })
 })

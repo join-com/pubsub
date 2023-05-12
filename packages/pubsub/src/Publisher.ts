@@ -1,17 +1,24 @@
 import { PubSub, Topic } from '@google-cloud/pubsub'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
+import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
+import { DateType } from './logical-types/DateType'
 import { ISchemaType, TopicHandler } from './TopicHandler'
 
 export class Publisher<T = unknown> {
   private readonly topic: Topic
   private readonly topicHandler: TopicHandler
-  private topicType: ISchemaType | undefined
-  private validationType: ISchemaType | undefined
+  private topicType?: ISchemaType
+  private validationType?: ISchemaType
+  private writerAvroType?: Type
   private readonly validationSchemaName: string
 
-  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger) {
+  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger, writerAvroSchema?: string) {
+    if (writerAvroSchema) {
+      const writerAvroJsonSchema = JSON.parse(writerAvroSchema) as Schema
+      this.writerAvroType = Type.forSchema(writerAvroJsonSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+    }
     this.topic = client.topic(topicName)
     this.validationSchemaName = `report-only-${this.topicName}-generated-avro`
     this.topicHandler = new TopicHandler(client, this.topic)
@@ -20,13 +27,25 @@ export class Publisher<T = unknown> {
   public async initialize() {
     try {
       await this.initializeTopic()
+
       this.topicType = await this.topicHandler.getTopicType()
+      this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
+
       if (!this.topicType) {
         this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
       }
     } catch (e) {
       this.logger?.error('PubSub: Failed to initialize publisher', e)
       process.abort()
+    }
+  }
+
+  private throwErrorIfOnlyReaderOrWriterSchema(writerSchema?: Type, readerSchema?: Type) {
+    if (!writerSchema && readerSchema) {
+      throw new Error('Writer schema specified for the topic without reader schema')
+    }
+    if (writerSchema && !readerSchema) {
+      throw new Error('Read schema specified for the topic without writer schema')
     }
   }
 
@@ -81,7 +100,7 @@ export class Publisher<T = unknown> {
     //TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
     // for now we are checking that it's not null before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const buffer = this.topicType!.type.toBuffer(data)
+    const buffer = this.writerAvroType!.toBuffer(data)
     const messageId = await this.topic.publishMessage({ data: buffer })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
 

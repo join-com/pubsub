@@ -25,7 +25,7 @@ export class TopicHandler {
 
   public async getSchemaType(schemaName: string): Promise<ISchemaType | undefined> {
     const topicSchema = await this.client.schema(schemaName).get()
-    if (!topicSchema.definition) {
+    if (!topicSchema?.definition) {
       this.logger?.info(`Couldn't find schema with name: ${schemaName}`)
       return undefined
     }

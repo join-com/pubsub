@@ -56,6 +56,7 @@ describe('Subscriber', () => {
     it('creates topic unless exists', async () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([])
 
       await subscriber.initialize()
 

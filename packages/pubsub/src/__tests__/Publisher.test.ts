@@ -17,6 +17,7 @@ const topic = 'topic-name'
 const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
+const processAbortSpy = jest.spyOn(process, 'abort')
 
 
 describe('Publisher', () => {
@@ -32,13 +33,16 @@ describe('Publisher', () => {
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
     topicMock.publishMessage.mockReset()
+    topicMock.getMetadata.mockReset()
+    schemaMock.get.mockReset()
+    processAbortSpy.mockClear()
+
   })
 
   describe('initialize', () => {
     it('creates unless topic exists', async () => {
       topicMock.exists.mockResolvedValue([false])
-      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
-      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      topicMock.getMetadata.mockResolvedValue([])
 
       await publisher.initialize()
 
@@ -48,6 +52,7 @@ describe('Publisher', () => {
 
     it('does not create if topic exists', async () => {
       topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([])
 
       await publisher.initialize()
 
@@ -74,12 +79,31 @@ describe('Publisher', () => {
       expect(clientMock.schema).toHaveBeenCalled()
       expect(topicMock.create).not.toHaveBeenCalled()
     })
+
+    it('throws error when writer schema specified and there is no reader schema on topic', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
+      processAbortSpy.mockImplementation(() => { throw new Error('mock error from process.abort'); });
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([])
+
+      await expect(publisher.initialize()).rejects.toThrow()
+    })
+
+    it('throws error when there is reader schema on the topic and no write schema specified', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())
+      processAbortSpy.mockImplementation(() => { throw new Error('mock error from process.abort'); });
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+
+      await expect(publisher.initialize()).rejects.toThrow()
+    })
   })
 
   describe('publishMsg on topic without schema', () => {
     const message = { id: 1 }
 
-    it('publishes json object with trace info', async () => {
+    it('publishes json object', async () => {
       await publisher.publishMsg(message)
 
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: message })
@@ -97,9 +121,12 @@ describe('Publisher', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = type.toBuffer(message)
 
-    it('publishes avro binary encoded object with trace info', async () => {
+    it('publishes avro binary encoded object', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
+
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
       await publisher.initialize()
 
       await publisher.publishMsg(message)

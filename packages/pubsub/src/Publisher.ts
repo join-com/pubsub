@@ -103,7 +103,6 @@ export class Publisher<T = unknown> {
     const buffer = this.writerAvroType!.toBuffer(data)
     const messageId = await this.topic.publishMessage({ data: buffer })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
-
   }
 
   private async sendJsonMessage(message: MessageOptions) {

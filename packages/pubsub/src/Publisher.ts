@@ -32,7 +32,11 @@ export class Publisher<T = unknown> {
       this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
 
       if (!this.topicType) {
-        this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
+        try {
+          this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
+        } catch (e) {
+          this.logger?.warn('Couldn\'t get schema for message validation against avro schema', e)
+        }
       }
     } catch (e) {
       this.logger?.error('PubSub: Failed to initialize publisher', e)

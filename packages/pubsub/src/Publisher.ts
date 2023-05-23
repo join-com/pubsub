@@ -45,10 +45,10 @@ export class Publisher<T = unknown> {
   }
 
   private throwErrorIfOnlyReaderOrWriterSchema(writerSchema?: Type, readerSchema?: Type) {
-    if (!writerSchema && readerSchema) {
+    if (writerSchema && !readerSchema) {
       throw new Error('Writer schema specified for the topic without reader schema')
     }
-    if (writerSchema && !readerSchema) {
+    if (!writerSchema && readerSchema) {
       throw new Error('Read schema specified for the topic without writer schema')
     }
   }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs'
 import { PubSub, Topic } from '@google-cloud/pubsub'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
 import { Schema, Type } from 'avsc'
@@ -6,18 +7,33 @@ import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 import { ISchemaType, TopicHandler } from './TopicHandler'
 
+interface IMessageMetadata {
+  Event: string,
+  generatorGitBranch:  string,
+  generatorGitBuildTime: string,
+  generatorGitCommitIdFull: string,
+  generatorGitRemoteOriginUrl: string,
+  schemaType: string,
+  avdlPathInGitRepo: string,
+  avdlGitRepoUrl: string
+}
+
+type SchemaWithMetadata = Schema & IMessageMetadata
+
 export class Publisher<T = unknown> {
   private readonly topic: Topic
   private readonly topicHandler: TopicHandler
   private topicType?: ISchemaType
   private validationType?: ISchemaType
   private writerAvroType?: Type
+  private readonly avroMessageMetadata?: Record<string, string>
   private readonly validationSchemaName: string
 
   constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger, writerAvroSchema?: string) {
     if (writerAvroSchema) {
-      const writerAvroJsonSchema = JSON.parse(writerAvroSchema) as Schema
+      const writerAvroJsonSchema = JSON.parse(writerAvroSchema) as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroJsonSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+      this.avroMessageMetadata = this.prepareAvroMessageMetadata(writerAvroJsonSchema)
     }
     this.topic = client.topic(topicName)
     this.validationSchemaName = `report-only-${this.topicName}-generated-avro`
@@ -105,7 +121,7 @@ export class Publisher<T = unknown> {
     // for now we are checking that it's not null before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const buffer = this.writerAvroType!.toBuffer(data)
-    const messageId = await this.topic.publishMessage({ data: buffer })
+    const messageId = await this.topic.publishMessage({ data: buffer, attributes: this.avroMessageMetadata })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
   }
 
@@ -113,4 +129,26 @@ export class Publisher<T = unknown> {
     const messageId = await this.topic.publishMessage(message)
     this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { message, messageId })
   }
+
+  private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {
+    const metadata: Record<string, string> = {}
+
+    metadata['Event'] = schema.Event
+    metadata['generatorGitBranch'] = schema.generatorGitBranch
+    metadata['generatorGitBuildTime'] = schema.generatorGitBuildTime
+    metadata['generatorGitCommitIdFull'] = schema.generatorGitCommitIdFull
+    metadata['generatorGitRemoteOriginUrl'] = schema.generatorGitRemoteOriginUrl
+    metadata['schemaType'] = schema.schemaType
+    metadata['avdlPathInGitRepo'] = schema.avdlPathInGitRepo
+    metadata['avdlGitRepoUrl'] = schema.avdlGitRepoUrl
+    metadata['joinPubsubLibVersion'] = this.getLibraryVersion()
+
+    return metadata
+  }
+
+  private getLibraryVersion(): string {
+    const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string}
+    return packageJson.version
+  }
+
 }

@@ -30,7 +30,15 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
       ],
       'default': null
     }
-  ]
+  ],
+  'Event' : 'data-company-affiliate-referral-created',
+  'generatorGitBranch' : '30569-avro-to-ts',
+  'generatorGitBuildTime' : '2023-05-22T18:38:22+0200',
+  'generatorGitCommitIdFull' : 'a5d2f34f22d0ee83481236fe0ea2ad54ff784c42',
+  'generatorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
+  'schemaType' : 'WRITER',
+  'avdlPathInGitRepo' : 'src/test/resources/input.avdl',
+  'avdlGitRepoUrl' : 'git@github.com:join-com/avro-join.git'
 }
 export const SCHEMA_EXAMPLE: ISchema = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE), revisionId: 'example'}
 

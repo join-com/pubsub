@@ -120,6 +120,18 @@ describe('Publisher', () => {
   describe('publishMsg on topic with schema', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = type.toBuffer(message)
+    const metadata = {
+      Event: 'data-company-affiliate-referral-created',
+      avdlGitRepoUrl: 'git@github.com:join-com/avro-join.git',
+      avdlPathInGitRepo: 'src/test/resources/input.avdl',
+      generatorGitBranch: '30569-avro-to-ts',
+      generatorGitBuildTime: '2023-05-22T18:38:22+0200',
+      generatorGitCommitIdFull: 'a5d2f34f22d0ee83481236fe0ea2ad54ff784c42',
+      generatorGitRemoteOriginUrl: 'git@github.com:join-com/avro-join.git',
+      joinPubsubLibVersion: '0.0.0-development',
+      schemaType: 'WRITER',
+    }
+
 
     it('publishes avro binary encoded object', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
@@ -131,7 +143,7 @@ describe('Publisher', () => {
 
       await publisher.publishMsg(message)
 
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
     })
   })
 

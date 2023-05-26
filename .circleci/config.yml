@@ -12,16 +12,26 @@ defaults: &defaults
     - image: cimg/node:16.14.1
       <<: *docker-auth
 
-references:
-  auth_with_registry: &auth_with_registry
-    run:
-      name: Authenticate with registry
-      command: echo "//registry.npmjs.org/:_authToken=$npm_TOKEN" > .npmrc
+commands:
+  authenticate_npm:
+    description: Authenticate client with registry
+    parameters:
+      path:
+        type: string
+        default: '.'
+    steps:
+      - run:
+          name: Authenticate with GAR (.npmrc)
+          command: |
+            echo $GCLOUD_SERVICE_KEY_CI_DEV | base64 -d > ${HOME}/gcloud-service-key.json
+            GOOGLE_APPLICATION_CREDENTIALS=${HOME}/gcloud-service-key.json yarn artifactregistry-login --repo-config=<< parameters.path >>/.npmrc
 
+
+references:
   remove_auth_with_registry: &remove_auth_with_registry
     run:
       name: Remove authentication with registry
-      command: rm .npmrc
+      command: rm ~/.npmrc
 
   yarn_install: &yarn_install
     run:
@@ -48,7 +58,7 @@ jobs:
     steps:
       - checkout
       - *restore_yarn_cache
-      - *auth_with_registry
+      - authenticate_npm
       - *yarn_install
       - run:
           name: lint
@@ -61,7 +71,7 @@ jobs:
     steps:
       - checkout
       - *restore_yarn_cache
-      - *auth_with_registry
+      - authenticate_npm
       - *yarn_install
       - run:
           name: test
@@ -74,7 +84,7 @@ jobs:
     steps:
       - checkout
       - *restore_yarn_cache
-      - *auth_with_registry
+      - authenticate_npm
       - *yarn_install
       - run:
           name: release

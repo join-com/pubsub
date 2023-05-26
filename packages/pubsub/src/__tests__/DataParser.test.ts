@@ -31,7 +31,7 @@ describe('DataParser', () => {
       expect(obj.a).toEqual(arr)
     })
 
-    it('leaves date as property the same', () => {
+    it('leaves date as property not changed', () => {
       const date = new Date()
       const obj = { a: date }
       const parser = new DataParser()

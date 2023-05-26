@@ -147,8 +147,8 @@ export class Publisher<T = unknown> {
   }
 
   private getLibraryVersion(): string {
-    const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string}
+    const libPackageJsonPath = '${__dirname}/../package.json'
+    const packageJson = JSON.parse(readFileSync(libPackageJsonPath, 'utf8')) as { version: string}
     return packageJson.version
   }
-
 }

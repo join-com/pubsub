@@ -844,7 +844,7 @@
 
 "@join-com/pubsub@^2.0.2":
   version "2.1.4"
-      resolved "https://registry.yarnpkg.com/@join-com/pubsub/-/pubsub-2.1.4.tgz#027b21668e8e556a4fc4d3539dde5978a1ef83de"
+  resolved "https://registry.yarnpkg.com/@join-com/pubsub/-/pubsub-2.1.4.tgz#027b21668e8e556a4fc4d3539dde5978a1ef83de"
   integrity sha512-+UWm/0BIJzjKAAR0J4KvU0tbmc13xWtJ7tR/XBJ6NzRitA3GNIZDVBk+Tx92yMFzuVWjAJBTJJ86nzRKt/BMPg==
   dependencies:
     "@google-cloud/pubsub" "^3.5.1"

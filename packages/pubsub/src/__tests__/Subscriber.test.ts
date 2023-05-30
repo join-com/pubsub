@@ -23,6 +23,9 @@ const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
+const flushPromises = () => new Promise(setImmediate);
+
+
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
@@ -324,6 +327,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       messageMock.data = type.toBuffer(avroData)
+      messageMock.attributes = {'googclient_schemarevisionid': 'example'}
 
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -332,7 +336,7 @@ describe('Subscriber', () => {
       })
 
       await subscriptionMock.receiveMessage(messageMock)
-
+      await flushPromises()
       expect(parsedMessage?.dataParsed).toEqual(avroData)
     })
 

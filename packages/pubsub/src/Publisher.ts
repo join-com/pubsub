@@ -9,13 +9,12 @@ import { ISchemaType, TopicHandler } from './TopicHandler'
 
 interface IMessageMetadata {
   Event: string,
-  generatorGitBranch:  string,
-  generatorGitBuildTime: string,
-  generatorGitCommitIdFull: string,
-  generatorGitRemoteOriginUrl: string,
-  schemaType: string,
-  avdlPathInGitRepo: string,
-  avdlGitRepoUrl: string
+  GeneratorVersion: string,
+  GeneratorGitRemoteOriginUrl: string,
+  SchemaType: string
+  AvdlSchemaPathInGitRepo:  string,
+  AvdlSchemaGitRemoteOriginUrl: string,
+  AvdlSchemaVersion: string
 }
 
 type SchemaWithMetadata = Schema & IMessageMetadata
@@ -44,7 +43,7 @@ export class Publisher<T = unknown> {
     try {
       await this.initializeTopic()
 
-      this.topicType = await this.topicHandler.getTopicType()
+      this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
       this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
 
       if (!this.topicType) {
@@ -77,7 +76,7 @@ export class Publisher<T = unknown> {
       } catch (e) {
         //it's a corner case when application started without topic schema, and then schema was added to the topic
         //in this case we are trying to get again topic data and resend with the schema if it's appeared
-        this.topicType = await this.topicHandler.getTopicType()
+        this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
         if (!this.topicType) {
           throw e
         }
@@ -133,15 +132,14 @@ export class Publisher<T = unknown> {
   private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {
     const metadata: Record<string, string> = {}
 
-    metadata['Event'] = schema.Event
-    metadata['generatorGitBranch'] = schema.generatorGitBranch
-    metadata['generatorGitBuildTime'] = schema.generatorGitBuildTime
-    metadata['generatorGitCommitIdFull'] = schema.generatorGitCommitIdFull
-    metadata['generatorGitRemoteOriginUrl'] = schema.generatorGitRemoteOriginUrl
-    metadata['schemaType'] = schema.schemaType
-    metadata['avdlPathInGitRepo'] = schema.avdlPathInGitRepo
-    metadata['avdlGitRepoUrl'] = schema.avdlGitRepoUrl
-    metadata['joinPubsubLibVersion'] = this.getLibraryVersion()
+    metadata['join_event'] = schema.Event
+    metadata['join_generator_version'] = schema.GeneratorVersion
+    metadata['join_generator_git_remote_origin_url'] = schema.GeneratorGitRemoteOriginUrl
+    metadata['join_schema_type'] = schema.SchemaType
+    metadata['join_avdl_schema_path_in_git_repo'] = schema.AvdlSchemaPathInGitRepo
+    metadata['join_avdl_schema_git_remote_origin_url'] = schema.AvdlSchemaGitRemoteOriginUrl
+    metadata['join_avdl_schema_version'] = schema.AvdlSchemaVersion
+    metadata['join_pubsub_lib_version'] = this.getLibraryVersion()
 
     return metadata
   }

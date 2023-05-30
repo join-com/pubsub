@@ -32,13 +32,12 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
     }
   ],
   'Event' : 'data-company-affiliate-referral-created',
-  'generatorGitBranch' : '30569-avro-to-ts',
-  'generatorGitBuildTime' : '2023-05-22T18:38:22+0200',
-  'generatorGitCommitIdFull' : 'a5d2f34f22d0ee83481236fe0ea2ad54ff784c42',
-  'generatorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
-  'schemaType' : 'WRITER',
-  'avdlPathInGitRepo' : 'src/test/resources/input.avdl',
-  'avdlGitRepoUrl' : 'git@github.com:join-com/avro-join.git'
+  'GeneratorVersion' : '1.0.0',
+  'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
+  'SchemaType' : 'WRITER',
+  'AvdlSchemaGitRemoteOriginUrl' : 'git@github.com:join-com/data.git',
+  'AvdlSchemaPathInGitRepo' : 'src/test/resources/input.avdl',
+  'AvdlSchemaVersion': 'commit-hash'
 }
 export const SCHEMA_EXAMPLE: ISchema = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE), revisionId: 'example'}
 
@@ -116,6 +115,7 @@ export interface IMessageMock {
   data: Buffer
   ack: jest.Mock<unknown, any>
   nack: jest.Mock<unknown, any>
+  attributes?: Record<string, string>
 }
 
 export const getMessageMock = (data: unknown): IMessageMock => {

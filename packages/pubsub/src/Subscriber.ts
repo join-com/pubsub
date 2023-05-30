@@ -1,8 +1,9 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
+import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
-import { ISchemaType, TopicHandler } from './TopicHandler'
+import { TopicHandler } from './TopicHandler'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -60,7 +61,7 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterSubscription?: Subscription
 
   private readonly topicHandler: TopicHandler
-  private topicType: ISchemaType | undefined
+  private readonly topicTypesCache: Record<string, Type> = {}
 
 
   constructor(
@@ -94,8 +95,7 @@ export class Subscriber<T = unknown> {
 
       await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
       await this.initializeDeadLetterSubscription()
-
-      this.topicType = await this.topicHandler.getTopicType()
+      await this.initTypesCache()
     } catch (e) {
       this.logger?.error(`PubSub: Failed to initialize subscriber ${this.subscriptionName}`, e)
       process.abort()
@@ -114,7 +114,7 @@ export class Subscriber<T = unknown> {
     await this.subscription.close()
   }
 
-  private logMessage(message: Message, dataParsed: T) {
+  private logMessage(message: Message, dataParsed: T, schemaRevisionId?: string) {
     const messageInfo = {
       id: message.id,
       ackId: message.ackId,
@@ -122,7 +122,7 @@ export class Subscriber<T = unknown> {
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
       deliveryAttempt: message.deliveryAttempt,
-      schemaRevisionId: this.topicType?.schemaRevisionId
+      schemaRevisionId: schemaRevisionId
     }
 
     this.logger?.info(
@@ -131,11 +131,11 @@ export class Subscriber<T = unknown> {
     )
   }
 
-  private parseData(message: Message): T {
+  private async parseData(message: Message): Promise<T> {
     let dataParsed: T
     const dataParser = new DataParser()
-    if (this.topicType) {
-      const dataParsedWithNulls = this.topicType.type.fromBuffer(message.data) as T
+    if (Object.keys(this.topicTypesCache).length) {
+      const dataParsedWithNulls = await this.parseAvroMessage(message)
       dataParsed = dataParser.replaceNullsWithUndefined(dataParsedWithNulls)
     } else {
       dataParsed = dataParser.parse(message.data) as T
@@ -144,20 +144,39 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
+  private async parseAvroMessage(message: Message): Promise<T> {
+    const schemaId = message.attributes['googclient_schemarevisionid']
+    if (!schemaId) {
+      throw new Error(`Message ${message.id} doesn't have a schemaId specified for the topic ${this.topicName} with schema`)
+    }
+    const type: Type = await this.getTypeFromCacheOrRemote(schemaId)
+    return type.fromBuffer(message.data) as T
+  }
+
+  private async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
+    const typeFromCache = this.topicTypesCache[schemaRevisionId]
+    if (typeFromCache) {
+      return typeFromCache
+    }
+    const schemaType = await this.topicHandler.getSchemaType(schemaRevisionId)
+    this.topicTypesCache[schemaType.schemaRevisionId] = schemaType.type
+    return schemaType.type
+  }
+
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {
       let dataParsed
       //TODO: try catch should be removed after all topics will start using avro
       try {
-        dataParsed = this.parseData(message)
+        dataParsed = await this.parseData(message)
       } catch (e) {
         this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
         //if there is a schema, throw error, as we can't fix it, otherwise try to load schema and parse again
-        if (this.topicType?.type) {
+        if (Object.keys(this.topicTypesCache).length) {
           throw e
         }
-        this.topicType = await this.topicHandler.getTopicType()
-        dataParsed = this.parseData(message)
+        await this.initTypesCache()
+        dataParsed = await this.parseData(message)
       }
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {
@@ -172,6 +191,13 @@ export class Subscriber<T = unknown> {
       }).catch(e => {
         throw e
       })
+    }
+  }
+
+  private async initTypesCache() {
+    const topicType = await this.topicHandler.getSchemaTypeFromTopic()
+    if (topicType) {
+      this.topicTypesCache[topicType.schemaRevisionId] = topicType.type
     }
   }
 

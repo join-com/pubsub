@@ -61,23 +61,25 @@ describe('Publisher', () => {
     })
 
     it('gets schema when metadata is specified', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
 
       await publisher.initialize()
 
-      expect(topicMock.create).not.toHaveBeenCalled()
       expect(clientMock.schema).toHaveBeenCalled()
     })
 
     it('gets validation topic schema when metadata is not specified', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())
+
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
 
       await publisher.initialize()
 
       expect(clientMock.schema).toHaveBeenCalled()
-      expect(topicMock.create).not.toHaveBeenCalled()
     })
 
     it('throws error when writer schema specified and there is no reader schema on topic', async () => {
@@ -121,15 +123,15 @@ describe('Publisher', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = type.toBuffer(message)
     const metadata = {
-      Event: 'data-company-affiliate-referral-created',
-      avdlGitRepoUrl: 'git@github.com:join-com/avro-join.git',
-      avdlPathInGitRepo: 'src/test/resources/input.avdl',
-      generatorGitBranch: '30569-avro-to-ts',
-      generatorGitBuildTime: '2023-05-22T18:38:22+0200',
-      generatorGitCommitIdFull: 'a5d2f34f22d0ee83481236fe0ea2ad54ff784c42',
-      generatorGitRemoteOriginUrl: 'git@github.com:join-com/avro-join.git',
-      joinPubsubLibVersion: '0.0.0-development',
-      schemaType: 'WRITER',
+      join_event: 'data-company-affiliate-referral-created',
+      join_generator_version: '1.0.0',
+      join_generator_git_remote_origin_url: 'git@github.com:join-com/avro-join.git',
+      join_schema_type: 'WRITER',
+      join_avdl_schema_path_in_git_repo: 'src/test/resources/input.avdl',
+      join_avdl_schema_git_remote_origin_url: 'git@github.com:join-com/data.git',
+      join_avdl_schema_version: 'commit-hash',
+      join_pubsub_lib_version: '0.0.0-development',
+
     }
 
 

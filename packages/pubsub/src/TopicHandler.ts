@@ -4,8 +4,8 @@ import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 
 export interface ISchemaType {
+  schemaRevisionId: string
   type: Type
-  schemaRevisionId: string | null | undefined
 }
 
 export class TopicHandler {
@@ -13,7 +13,7 @@ export class TopicHandler {
   constructor(private readonly client: PubSub, private readonly topic: Topic, private readonly logger?: ILogger) {
   }
 
-  public async getTopicType(): Promise<ISchemaType | undefined> {
+  public async getSchemaTypeFromTopic(): Promise<ISchemaType | undefined> {
     const [metadata] = await this.topic.getMetadata()
     const schemaName = metadata?.schemaSettings?.schema
     if (!schemaName) {
@@ -23,14 +23,13 @@ export class TopicHandler {
     return await this.getSchemaType(schemaName)
   }
 
-  public async getSchemaType(schemaName: string): Promise<ISchemaType | undefined> {
-    const topicSchema = await this.client.schema(schemaName).get()
-    if (!topicSchema?.definition) {
-      this.logger?.info(`Couldn't find schema with name: ${schemaName}`)
-      return undefined
+  public async getSchemaType(schemaNameOrRevisionId: string): Promise<ISchemaType> {
+    const topicSchema = await this.client.schema(schemaNameOrRevisionId).get()
+    if (!topicSchema || !topicSchema?.definition || !topicSchema?.revisionId) {
+      throw new Error(`Couldn't find schema with name: ${schemaNameOrRevisionId}`)
     }
     const schema = JSON.parse(topicSchema.definition) as Schema
-    this.logger?.info(`For schema ${schemaName} next revisionId is used: ${topicSchema?.revisionId || 'no-revision-in-registry'}`)
+    this.logger?.info(`For schema ${schemaNameOrRevisionId} next revisionId is used: ${topicSchema.revisionId}`)
     return {
       type: Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } }),
       schemaRevisionId: topicSchema.revisionId

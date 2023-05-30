@@ -25,25 +25,24 @@ describe('TopicHandler', () => {
   })
 
   describe('getSchemaType', () => {
-    it('returns undefined when schema not returned from remote', async () => {
+    it('throws error when schema not returned from remote', async () => {
       schemaMock.get.mockResolvedValue({ definition: undefined })
 
-      const schemaType = await topicHandler.getSchemaType('some')
-      expect(schemaType).toBeUndefined()
+      await expect(topicHandler.getSchemaType('some')).rejects.toThrow()
     })
 
     it('returns schema type when schema is returned from remote', async () => {
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
 
       const schemaType = await topicHandler.getSchemaType('some')
-      expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
+      expect(schemaType.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
     })
   })
 
   describe('getTopicType', () => {
     it('returns undefined when schema is not specified on the topic', async () => {
       topicMock.getMetadata.mockResolvedValue([])
-      const schemaType = await topicHandler.getTopicType()
+      const schemaType = await topicHandler.getSchemaTypeFromTopic()
       expect(schemaType).toBeUndefined()
     })
 
@@ -53,7 +52,7 @@ describe('TopicHandler', () => {
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
 
       const schemaType = await topicHandler.getSchemaType('some')
-      expect(schemaType!.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
+      expect(schemaType.schemaRevisionId).toEqual(SCHEMA_EXAMPLE.revisionId)
     })
   })
 })

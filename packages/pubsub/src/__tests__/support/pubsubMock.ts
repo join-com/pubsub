@@ -124,6 +124,7 @@ export const getMessageMock = (data: unknown): IMessageMock => {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
+    attributes: {}
   }
 }
 

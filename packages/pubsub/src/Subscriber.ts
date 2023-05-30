@@ -134,8 +134,9 @@ export class Subscriber<T = unknown> {
   private async parseData(message: Message): Promise<T> {
     let dataParsed: T
     const dataParser = new DataParser()
-    if (Object.keys(this.topicTypesCache).length) {
-      const dataParsedWithNulls = await this.parseAvroMessage(message)
+    const schemaId = message.attributes['googclient_schemarevisionid']
+    if (schemaId) {
+      const dataParsedWithNulls = await this.parseAvroMessage(message, schemaId)
       dataParsed = dataParser.replaceNullsWithUndefined(dataParsedWithNulls)
     } else {
       dataParsed = dataParser.parse(message.data) as T
@@ -144,13 +145,9 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
-  private async parseAvroMessage(message: Message): Promise<T> {
-    const schemaId = message.attributes['googclient_schemarevisionid']
-    if (!schemaId) {
-      throw new Error(`Message ${message.id} doesn't have a schemaId specified for the topic ${this.topicName} with schema`)
-    }
+  private async parseAvroMessage(message: Message, schemaId: string): Promise<T> {
     const type: Type = await this.getTypeFromCacheOrRemote(schemaId)
-    return type.fromBuffer(message.data) as T
+    return type.fromString(message.data.toString()) as T
   }
 
   private async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
@@ -165,19 +162,7 @@ export class Subscriber<T = unknown> {
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {
-      let dataParsed
-      //TODO: try catch should be removed after all topics will start using avro
-      try {
-        dataParsed = await this.parseData(message)
-      } catch (e) {
-        this.logger?.error(`Couldn't parse message, messageId: ${message.id}`)
-        //if there is a schema, throw error, as we can't fix it, otherwise try to load schema and parse again
-        if (Object.keys(this.topicTypesCache).length) {
-          throw e
-        }
-        await this.initTypesCache()
-        dataParsed = await this.parseData(message)
-      }
+      const dataParsed = await this.parseData(message)
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {
         message.nack()

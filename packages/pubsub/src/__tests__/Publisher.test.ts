@@ -121,7 +121,7 @@ describe('Publisher', () => {
 
   describe('publishMsg on topic with schema', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
-    const avroMessage = type.toBuffer(message)
+    const avroMessage = Buffer.from(type.toString(message))
     const metadata = {
       join_event: 'data-company-affiliate-referral-created',
       join_generator_version: '1.0.0',
@@ -135,7 +135,7 @@ describe('Publisher', () => {
     }
 
 
-    it('publishes avro binary encoded object', async () => {
+    it('publishes avro json encoded object', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
 
       topicMock.exists.mockResolvedValue([true])

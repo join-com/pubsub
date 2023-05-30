@@ -326,7 +326,7 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      messageMock.data = type.toBuffer(avroData)
+      messageMock.data = Buffer.from(type.toString(avroData))
       messageMock.attributes = {'googclient_schemarevisionid': 'example'}
 
       let parsedMessage: IParsedMessage<unknown> | undefined

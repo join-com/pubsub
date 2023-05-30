@@ -119,7 +119,7 @@ export class Publisher<T = unknown> {
     //TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
     // for now we are checking that it's not null before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const buffer = this.writerAvroType!.toBuffer(data)
+    const buffer = Buffer.from(this.writerAvroType!.toString(data))
     const messageId = await this.topic.publishMessage({ data: buffer, attributes: this.avroMessageMetadata })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
   }

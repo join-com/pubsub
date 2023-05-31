@@ -1,3 +1,6 @@
+const isObject = (obj: unknown): obj is Record<string, unknown> => {
+  return obj instanceof Object && obj.constructor === Object
+}
 export class DataParser {
 
   public parse(data: Buffer): unknown {
@@ -12,27 +15,26 @@ export class DataParser {
   }
 
   public replaceNullsWithUndefined<T>(obj: T) : T {
-    this.deepNullToUndefinedInObject(obj as Record<string, unknown>)
+    if (isObject(obj)) {
+      this.deepNullToUndefinedInObject(obj)
+    }
     return obj
   }
 
-  private deepNullToUndefinedInObject(obj: Record<string, unknown>)  {
+  public deepNullToUndefinedInObject(obj: Record<string, unknown>)  {
     for (const key in obj) {
-      if (obj[key] === null) {
+      const objProp = obj[key]
+      if (objProp === null) {
         obj[key] = undefined
-      } else if (Array.isArray(obj[key])) {
-        for (const member of obj[key] as Array<unknown>) {
-          if (typeof member === 'object' && Object.keys(member as object).length > 0) {
-            this.deepNullToUndefinedInObject(member as Record<string, unknown>)
+      } else if (Array.isArray(objProp)) {
+        for (const member of objProp) {
+          if (isObject(member)) {
+            this.deepNullToUndefinedInObject(member)
           }
         }
-      } else if (typeof obj[key] === 'object' && Object.keys(obj[key] as object).length > 0) {
-        this.deepNullToUndefinedInObject(obj[key] as Record<string, unknown>)
+      } else if (isObject(objProp)) {
+        this.deepNullToUndefinedInObject(objProp)
       }
     }
   }
 }
-
-
-
-

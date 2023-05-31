@@ -1,5 +1,5 @@
 const isObject = (obj: unknown): obj is Record<string, unknown> => {
-  return obj instanceof Object && obj.constructor === Object
+  return obj instanceof Object && Object.keys(obj).length > 0
 }
 export class DataParser {
 
@@ -32,6 +32,8 @@ export class DataParser {
             this.deepNullToUndefinedInObject(member)
           }
         }
+      } else if (objProp instanceof Date || objProp instanceof Buffer) {
+        continue
       } else if (isObject(objProp)) {
         this.deepNullToUndefinedInObject(objProp)
       }

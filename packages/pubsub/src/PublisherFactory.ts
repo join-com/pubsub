@@ -2,8 +2,8 @@ import { PubSub } from '@google-cloud/pubsub'
 import { ILogger } from './ILogger'
 import { Publisher } from './Publisher'
 
-export interface IPublisher<T> {
-  topicName: string
+export interface IPublisher<R extends string, T> {
+  topicName: R
   initialize: () => Promise<void>
   publishMsg: (data: T) => Promise<void>
   flush: () => Promise<void>
@@ -16,7 +16,7 @@ export class PublisherFactory<T> {
     this.client = new PubSub()
   }
 
-  public getPublisher<K extends keyof T>(topic: K, writerAvroSchema?: string): IPublisher<T[K]> {
-    return new Publisher(topic.toString(), this.client, this.logger, writerAvroSchema)
+  public getPublisher<R extends string, K extends keyof T>(topic: R, writerAvroSchemas?: Record<R, object>): IPublisher<R, T[K]> {
+    return new Publisher(topic, this.client, this.logger, writerAvroSchemas)
   }
 }

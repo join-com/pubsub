@@ -1,11 +1,13 @@
 import { readFileSync } from 'fs'
 import { PubSub, Topic } from '@google-cloud/pubsub'
+import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 import { ISchemaType, TopicHandler } from './TopicHandler'
+import Encoding = google.pubsub.v1.Encoding
 
 interface IMessageMetadata {
   Event: string,
@@ -19,22 +21,25 @@ interface IMessageMetadata {
 
 type SchemaWithMetadata = Schema & IMessageMetadata
 
-export class Publisher<T = unknown> {
+export class Publisher<R extends string, T = unknown> {
   private readonly topic: Topic
   private readonly topicHandler: TopicHandler
-  private topicType?: ISchemaType
-  private validationType?: ISchemaType
-  private writerAvroType?: Type
-  private readonly avroMessageMetadata?: Record<string, string>
+  private readonly topicSchemaName: string
   private readonly validationSchemaName: string
 
-  constructor(readonly topicName: string, client: PubSub, private readonly logger?: ILogger, writerAvroSchema?: string) {
-    if (writerAvroSchema) {
-      const writerAvroJsonSchema = JSON.parse(writerAvroSchema) as SchemaWithMetadata
+  private topicType?: ISchemaType
+  private validationType?: ISchemaType
+  private readonly writerAvroType?: Type
+  private readonly avroMessageMetadata?: Record<string, string>
+
+  constructor(readonly topicName: R, client: PubSub, private readonly logger?: ILogger, writerAvroSchemas?: Record<R, object>) {
+    if (writerAvroSchemas) {
+      const writerAvroJsonSchema = writerAvroSchemas[topicName] as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroJsonSchema, { logicalTypes: { 'timestamp-micros': DateType } })
       this.avroMessageMetadata = this.prepareAvroMessageMetadata(writerAvroJsonSchema)
     }
     this.topic = client.topic(topicName)
+    this.topicSchemaName = `${this.topicName}-generated-avro`
     this.validationSchemaName = `report-only-${this.topicName}-generated-avro`
     this.topicHandler = new TopicHandler(client, this.topic)
   }
@@ -42,20 +47,30 @@ export class Publisher<T = unknown> {
   public async initialize() {
     try {
       await this.initializeTopic()
-
-      this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
-      this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
-
-      if (!this.topicType) {
-        try {
-          this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
-        } catch (e) {
-          this.logger?.warn('Couldn\'t get schema for message validation against avro schema', e)
-        }
-      }
+      await this.initializeTopicSchema()
     } catch (e) {
       this.logger?.error('PubSub: Failed to initialize publisher', e)
       process.abort()
+    }
+  }
+
+  private async initializeTopicSchema() {
+    this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
+    this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
+
+    if (!this.topicType) {
+      if (await this.topicHandler.doesSchemaExist(this.topicSchemaName)) {
+        //set schema to the topic if schema with the specific name pattern exists
+        await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
+        this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
+      } else {
+        //try to load the schema for payloads validation if it exists
+        if (await this.topicHandler.doesSchemaExist(this.validationSchemaName)) {
+          this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
+        } else {
+          this.logger?.warn('Couldn\'t get schema for message validation against avro schema')
+        }
+      }
     }
   }
 

@@ -18,10 +18,11 @@ const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const processAbortSpy = jest.spyOn(process, 'abort')
+const writerAvroSchemas = {[topic]: SCHEMA_DEFINITION_EXAMPLE }
 
 
 describe('Publisher', () => {
-  let publisher: Publisher
+  let publisher: Publisher<'topic-name'>
 
   beforeEach(() => {
     publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())
@@ -61,7 +62,7 @@ describe('Publisher', () => {
     })
 
     it('gets schema when metadata is specified', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), writerAvroSchemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
@@ -83,7 +84,7 @@ describe('Publisher', () => {
     })
 
     it('throws error when writer schema specified and there is no reader schema on topic', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), writerAvroSchemas)
       processAbortSpy.mockImplementation(() => { throw new Error('mock error from process.abort'); });
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
@@ -136,8 +137,7 @@ describe('Publisher', () => {
 
 
     it('publishes avro json encoded object', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), JSON.stringify(SCHEMA_DEFINITION_EXAMPLE))
-
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), writerAvroSchemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)

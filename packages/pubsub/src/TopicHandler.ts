@@ -35,4 +35,9 @@ export class TopicHandler {
       schemaRevisionId: topicSchema.revisionId
     }
   }
+
+  public async doesSchemaExist(schemaNameOrRevisionId: string): Promise<boolean> {
+    return !!(await this.client.schema(schemaNameOrRevisionId).get());
+
+  }
 }

@@ -1,7 +1,7 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { env } from '@join-com/process-env'
-import { Type } from 'avsc'
+import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
@@ -159,10 +159,15 @@ export class Subscriber<T = unknown> {
       return typeFromCache
     }
     const revision = `projects/${env('GCLOUD_PROJECT').asString()}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
-    const [schema] = await this.schemaServiceClient.getSchema({ name: revision })
+    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revision })
     // schema must always have a definition, so we want to fail if there is a wrong schema without a definition
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return Type.forSchema(schema.definition!, { logicalTypes: { 'timestamp-micros': DateType } })
+    const schema = JSON.parse(remoteSchema.definition!) as Schema
+
+    const type = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
+    this.topicTypesCache[schemaRevisionId] = type
+
+    return type
   }
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {

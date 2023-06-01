@@ -326,7 +326,7 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
-      schemaClientMock.getSchema.mockResolvedValue([{definition: SCHEMA_DEFINITION_EXAMPLE}])
+      schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}])
 
       await subscriber.initialize()
 

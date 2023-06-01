@@ -26,17 +26,17 @@ export class Publisher<R extends string, T = unknown> {
 
   private readonly writerAvroType?: Type
   private readonly readerAvroType?: Type
-  private readonly avroMessageMetadata?: Record<string, string>
 
+  private readonly avroMessageMetadata?: Record<string, string>
   //TODO: remove flags below, when only avro will be used
-  private readonly avroEnabled
-  private schemaEnabled = false
+  private topicHasAssignedSchema = false
+  private avroSchemasProvided = false
 
   constructor(readonly topicName: R, readonly client: PubSub, private readonly logger?: ILogger,
               avroSchemas?: Record<R, { writer: object, reader: object }>) {
     //TODO: avroSchemas parameter should be mandatory when only avro is used
     if (avroSchemas) {
-      this.avroEnabled = true
+      this.avroSchemasProvided = true
       const writerAvroSchema = avroSchemas[topicName].writer as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
 
@@ -60,28 +60,26 @@ export class Publisher<R extends string, T = unknown> {
   }
 
   public async publishMsg(data: T): Promise<void> {
-    if (!this.avroEnabled) {
+    if (!this.avroSchemasProvided) {
       // old flow, just send message if no avro schemas provided
       await this.sendJsonMessage({ json: data })
-    } else {
-      if (!this.schemaEnabled) {
-        try {
-          await this.sendJsonMessage({ json: data })
-        } catch (e) {
-          //it's a corner case when application started without schema on topic, and then schema was added to the topic
-          //in this case we are trying to resend message with avro format if schema appeared
-          this.schemaEnabled = await this.doesTopicHasSchema()
-          if (!this.schemaEnabled) {
-            throw e
-          }
-          await this.sendAvroMessage(data)
+    } else if (!this.topicHasAssignedSchema) {
+      try {
+        await this.sendJsonMessage({ json: data })
+      } catch (e) {
+        //it's a corner case when application started without schema on topic, and then schema was added to the topic
+        //in this case we are trying to resend message with avro format if schema appeared
+        this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
+        if (!this.topicHasAssignedSchema) {
+          throw e
         }
-        this.logWarnIfMessageViolatesSchema(data)
-        return
-      } else {
-        // TODO: remove everything except this call, after services will be ready to use only avro
         await this.sendAvroMessage(data)
       }
+      this.logWarnIfMessageViolatesSchema(data)
+      return
+    } else {
+      // TODO: remove everything except this call, after services will be ready to use only avro
+      await this.sendAvroMessage(data)
     }
 
   }
@@ -110,9 +108,9 @@ export class Publisher<R extends string, T = unknown> {
   }
 
   private async initializeTopicSchema(): Promise<void> {
-    if (this.avroEnabled) {
-      this.schemaEnabled = await this.doesTopicHasSchema()
-      if (!this.schemaEnabled && await this.doesTopicSchemaExist()) {
+    if (this.avroSchemasProvided) {
+      this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
+      if (!this.topicHasAssignedSchema && await this.doesRegistryHaveTopicSchema()) {
         await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
         this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
       }
@@ -160,13 +158,13 @@ export class Publisher<R extends string, T = unknown> {
     return packageJson.version
   }
 
-  private async doesTopicHasSchema(): Promise<boolean> {
+  private async doesTopicHaveSchemaAssigned(): Promise<boolean> {
     const [metadata] = await this.topic.getMetadata()
     const schemaName = metadata?.schemaSettings?.schema
     return !!schemaName
   }
 
-  public async doesTopicSchemaExist(): Promise<boolean> {
+  public async doesRegistryHaveTopicSchema(): Promise<boolean> {
     return !!(await this.client.schema(this.topicSchemaName).get());
   }
 }

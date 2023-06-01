@@ -18,11 +18,11 @@ const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const processAbortSpy = jest.spyOn(process, 'abort')
-const schemas = {[topic]: {writer: SCHEMA_DEFINITION_EXAMPLE, reader: SCHEMA_DEFINITION_EXAMPLE} }
+const schemas = {writer: SCHEMA_DEFINITION_EXAMPLE, reader: SCHEMA_DEFINITION_EXAMPLE}
 
 
 describe('Publisher', () => {
-  let publisher: Publisher<'topic-name'>
+  let publisher: Publisher
 
   beforeEach(() => {
     publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())

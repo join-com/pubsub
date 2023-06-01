@@ -20,7 +20,7 @@ interface IMessageMetadata {
 
 type SchemaWithMetadata = Schema & IMessageMetadata
 
-export class Publisher<R extends string, T = unknown> {
+export class Publisher<T = unknown> {
   private readonly topic: Topic
   private readonly topicSchemaName: string
 
@@ -32,15 +32,15 @@ export class Publisher<R extends string, T = unknown> {
   private topicHasAssignedSchema = false
   private avroSchemasProvided = false
 
-  constructor(readonly topicName: R, readonly client: PubSub, private readonly logger?: ILogger,
-              avroSchemas?: Record<R, { writer: object, reader: object }>) {
+  constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger,
+              avroSchemas?: { writer: object, reader: object }) {
     //TODO: avroSchemas parameter should be mandatory when only avro is used
     if (avroSchemas) {
       this.avroSchemasProvided = true
-      const writerAvroSchema = avroSchemas[topicName].writer as SchemaWithMetadata
+      const writerAvroSchema: SchemaWithMetadata = avroSchemas.writer as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
 
-      const readerAvroSchema = avroSchemas[topicName].reader as SchemaWithMetadata
+      const readerAvroSchema: SchemaWithMetadata = avroSchemas.reader as SchemaWithMetadata
       this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
 
       this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
@@ -66,6 +66,7 @@ export class Publisher<R extends string, T = unknown> {
     } else if (!this.topicHasAssignedSchema) {
       try {
         await this.sendJsonMessage({ json: data })
+        this.logWarnIfMessageViolatesSchema(data)
       } catch (e) {
         //it's a corner case when application started without schema on topic, and then schema was added to the topic
         //in this case we are trying to resend message with avro format if schema appeared
@@ -75,19 +76,16 @@ export class Publisher<R extends string, T = unknown> {
         }
         await this.sendAvroMessage(data)
       }
-      this.logWarnIfMessageViolatesSchema(data)
-      return
     } else {
-      // TODO: remove everything except this call, after services will be ready to use only avro
+      // TODO: remove everything except this call after services will be ready to use only avro
       await this.sendAvroMessage(data)
     }
-
   }
 
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
       if (!this.writerAvroType.isValid(data)) {
-        this.logger?.warn('Message violates writer avro schema', this.avroMessageMetadata)
+        this.logger?.warn('Message violates writer avro schema', { payload: data, metadata: this.avroMessageMetadata })
       }
     }
   }

@@ -4,6 +4,7 @@ import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
 import { TopicHandler } from './TopicHandler'
+import { replaceNullsWithUndefined } from './util'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -136,8 +137,8 @@ export class Subscriber<T = unknown> {
     const dataParser = new DataParser()
     const schemaId = message.attributes['googclient_schemarevisionid']
     if (schemaId) {
-      const dataParsedWithNulls = await this.parseAvroMessage(message, schemaId)
-      dataParsed = dataParser.replaceNullsWithUndefined(dataParsedWithNulls)
+      dataParsed = await this.parseAvroMessage(message, schemaId)
+      replaceNullsWithUndefined(dataParsed)
     } else {
       dataParsed = dataParser.parse(message.data) as T
     }

@@ -135,7 +135,6 @@ describe('Publisher', () => {
 
     }
 
-
     it('publishes avro json encoded object', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), writerAvroSchemas)
       topicMock.exists.mockResolvedValue([true])

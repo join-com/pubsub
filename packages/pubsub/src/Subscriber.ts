@@ -1,9 +1,11 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
+import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { env } from '@join-com/process-env'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
-import { TopicHandler } from './TopicHandler'
+import { DateType } from './logical-types/DateType'
 import { replaceNullsWithUndefined } from './util'
 
 export interface IParsedMessage<T = unknown> {
@@ -51,6 +53,7 @@ interface ISubscriptionInitializationOptions {
 export class Subscriber<T = unknown> {
   readonly topicName: string
   readonly subscriptionName: string
+  readonly topicSchemaName: string
 
   private readonly topic: Topic
   private readonly subscription: Subscription
@@ -61,22 +64,21 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscription?: Subscription
 
-  private readonly topicHandler: TopicHandler
   private readonly topicTypesCache: Record<string, Type> = {}
-
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
     pubSubClient: PubSub,
+    private readonly schemaServiceClient: SchemaServiceClient,
     private readonly logger?: ILogger,
   ) {
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
     this.topicName = topicName
     this.subscriptionName = subscriptionName
+    this.topicSchemaName = `${this.topicName}-generated-avro`
 
     this.topic = pubSubClient.topic(topicName)
-    this.topicHandler = new TopicHandler(pubSubClient, this.topic)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
 
     if (this.isDeadLetterPolicyEnabled()) {
@@ -96,7 +98,6 @@ export class Subscriber<T = unknown> {
 
       await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
       await this.initializeDeadLetterSubscription()
-      await this.initTypesCache()
     } catch (e) {
       this.logger?.error(`PubSub: Failed to initialize subscriber ${this.subscriptionName}`, e)
       process.abort()
@@ -134,12 +135,13 @@ export class Subscriber<T = unknown> {
 
   private async parseData(message: Message): Promise<T> {
     let dataParsed: T
-    const dataParser = new DataParser()
     const schemaId = message.attributes['googclient_schemarevisionid']
+    // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
     if (schemaId) {
       dataParsed = await this.parseAvroMessage(message, schemaId)
       replaceNullsWithUndefined(dataParsed)
     } else {
+      const dataParser = new DataParser()
       dataParsed = dataParser.parse(message.data) as T
     }
     this.logMessage(message, dataParsed)
@@ -156,9 +158,11 @@ export class Subscriber<T = unknown> {
     if (typeFromCache) {
       return typeFromCache
     }
-    const schemaType = await this.topicHandler.getSchemaType(schemaRevisionId)
-    this.topicTypesCache[schemaType.schemaRevisionId] = schemaType.type
-    return schemaType.type
+    const revision = `projects/${env('GCLOUD_PROJECT').asString()}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
+    const [schema] = await this.schemaServiceClient.getSchema({ name: revision })
+    // schema must always have a definition, so we want to fail if there is a wrong schema without a definition
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return Type.forSchema(schema.definition!, { logicalTypes: { 'timestamp-micros': DateType } })
   }
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
@@ -177,13 +181,6 @@ export class Subscriber<T = unknown> {
       }).catch(e => {
         throw e
       })
-    }
-  }
-
-  private async initTypesCache() {
-    const topicType = await this.topicHandler.getSchemaTypeFromTopic()
-    if (topicType) {
-      this.topicTypesCache[topicType.schemaRevisionId] = topicType.type
     }
   }
 

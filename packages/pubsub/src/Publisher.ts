@@ -6,7 +6,6 @@ import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
-import { ISchemaType, TopicHandler } from './TopicHandler'
 import Encoding = google.pubsub.v1.Encoding
 
 interface IMessageMetadata {
@@ -23,25 +22,31 @@ type SchemaWithMetadata = Schema & IMessageMetadata
 
 export class Publisher<R extends string, T = unknown> {
   private readonly topic: Topic
-  private readonly topicHandler: TopicHandler
   private readonly topicSchemaName: string
-  private readonly validationSchemaName: string
 
-  private topicType?: ISchemaType
-  private validationType?: ISchemaType
   private readonly writerAvroType?: Type
+  private readonly readerAvroType?: Type
   private readonly avroMessageMetadata?: Record<string, string>
 
-  constructor(readonly topicName: R, client: PubSub, private readonly logger?: ILogger, writerAvroSchemas?: Record<R, object>) {
-    if (writerAvroSchemas) {
-      const writerAvroJsonSchema = writerAvroSchemas[topicName] as SchemaWithMetadata
-      this.writerAvroType = Type.forSchema(writerAvroJsonSchema, { logicalTypes: { 'timestamp-micros': DateType } })
-      this.avroMessageMetadata = this.prepareAvroMessageMetadata(writerAvroJsonSchema)
+  //TODO: remove flags below, when only avro will be used
+  private readonly avroEnabled
+  private schemaEnabled = false
+
+  constructor(readonly topicName: R, readonly client: PubSub, private readonly logger?: ILogger,
+              avroSchemas?: Record<R, { writer: object, reader: object }>) {
+    //TODO: avroSchemas parameter should be mandatory when only avro is used
+    if (avroSchemas) {
+      this.avroEnabled = true
+      const writerAvroSchema = avroSchemas[topicName].writer as SchemaWithMetadata
+      this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+
+      const readerAvroSchema = avroSchemas[topicName].reader as SchemaWithMetadata
+      this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+
+      this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
     }
     this.topic = client.topic(topicName)
     this.topicSchemaName = `${this.topicName}-generated-avro`
-    this.validationSchemaName = `report-only-${this.topicName}-generated-avro`
-    this.topicHandler = new TopicHandler(client, this.topic)
   }
 
   public async initialize() {
@@ -54,63 +59,37 @@ export class Publisher<R extends string, T = unknown> {
     }
   }
 
-  private async initializeTopicSchema() {
-    this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
-    this.throwErrorIfOnlyReaderOrWriterSchema(this.writerAvroType, this.topicType?.type)
-
-    if (!this.topicType) {
-      if (await this.topicHandler.doesSchemaExist(this.topicSchemaName)) {
-        //set schema to the topic if schema with the specific name pattern exists
-        await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
-        this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
-      } else {
-        //try to load the schema for payloads validation if it exists
-        if (await this.topicHandler.doesSchemaExist(this.validationSchemaName)) {
-          this.validationType = await this.topicHandler.getSchemaType(this.validationSchemaName)
-        } else {
-          this.logger?.warn('Couldn\'t get schema for message validation against avro schema')
-        }
-      }
-    }
-  }
-
-  private throwErrorIfOnlyReaderOrWriterSchema(writerSchema?: Type, readerSchema?: Type) {
-    if (writerSchema && !readerSchema) {
-      throw new Error('Writer schema specified for the topic without reader schema')
-    }
-    if (!writerSchema && readerSchema) {
-      throw new Error('Read schema specified for the topic without writer schema')
-    }
-  }
-
   public async publishMsg(data: T): Promise<void> {
-    // TODO: Later we want to have only topic with specified schema and remove if block below
-    if (!this.topicType) {
-      try {
-        await this.sendJsonMessage({ json: data })
-      } catch (e) {
-        //it's a corner case when application started without topic schema, and then schema was added to the topic
-        //in this case we are trying to get again topic data and resend with the schema if it's appeared
-        this.topicType = await this.topicHandler.getSchemaTypeFromTopic()
-        if (!this.topicType) {
-          throw e
+    if (!this.avroEnabled) {
+      // old flow, just send message if no avro schemas provided
+      await this.sendJsonMessage({ json: data })
+    } else {
+      if (!this.schemaEnabled) {
+        try {
+          await this.sendJsonMessage({ json: data })
+        } catch (e) {
+          //it's a corner case when application started without schema on topic, and then schema was added to the topic
+          //in this case we are trying to resend message with avro format if schema appeared
+          this.schemaEnabled = await this.doesTopicHasSchema()
+          if (!this.schemaEnabled) {
+            throw e
+          }
+          await this.sendAvroMessage(data)
         }
+        this.logWarnIfMessageViolatesSchema(data)
+        return
+      } else {
+        // TODO: remove everything except this call, after services will be ready to use only avro
         await this.sendAvroMessage(data)
       }
-      this.logWarnIfMessageViolatesSchema(data)
-      return
     }
 
-    await this.sendAvroMessage(data)
   }
 
-  private logWarnIfMessageViolatesSchema(data: T) {
-    if (this.validationType) {
-      try {
-        this.validationType.type.toBuffer(data)
-      } catch (e) {
-        this.logger?.warn('Message violates avro schema that we plan to enforce',
-          {data, schemaName: this.validationSchemaName})
+  private logWarnIfMessageViolatesSchema(data: T): void {
+    if (this.writerAvroType) {
+      if (!this.writerAvroType.isValid(data)) {
+        this.logger?.warn('Message violates writer avro schema', this.avroMessageMetadata)
       }
     }
   }
@@ -130,11 +109,27 @@ export class Publisher<R extends string, T = unknown> {
     }
   }
 
-  private async sendAvroMessage(data: T) {
+  private async initializeTopicSchema(): Promise<void> {
+    if (this.avroEnabled) {
+      this.schemaEnabled = await this.doesTopicHasSchema()
+      if (!this.schemaEnabled && await this.doesTopicSchemaExist()) {
+        await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
+        this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
+      }
+    }
+  }
+
+  private async sendAvroMessage(data: T): Promise<void> {
     // TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
-    // for now we are checking that it's not null before calling sendAvroMessage
+    // for now we are checking that avro is enabled before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const buffer = Buffer.from(this.writerAvroType!.toString(data))
+    if (!this.writerAvroType!.isValid(data)) {
+      this.logger?.error('Invalid payload for the specified writer schema, please check that the schema is correct ' +
+        'and payload can be encoded with it', {payload: data, schemaMetadata: this.avroMessageMetadata})
+      throw new Error(`Can't encode the avro message for the topic ${this.topicName}`)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const buffer = Buffer.from(this.readerAvroType!.toString(data))
     const messageId = await this.topic.publishMessage({ data: buffer, attributes: this.avroMessageMetadata })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
   }
@@ -163,5 +158,15 @@ export class Publisher<R extends string, T = unknown> {
     const libPackageJsonPath = `${__dirname}/../package.json`
     const packageJson = JSON.parse(readFileSync(libPackageJsonPath, 'utf8')) as { version: string}
     return packageJson.version
+  }
+
+  private async doesTopicHasSchema(): Promise<boolean> {
+    const [metadata] = await this.topic.getMetadata()
+    const schemaName = metadata?.schemaSettings?.schema
+    return !!schemaName
+  }
+
+  public async doesTopicSchemaExist(): Promise<boolean> {
+    return !!(await this.client.schema(this.topicSchemaName).get());
   }
 }

@@ -1,4 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub'
+import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
 import { DateType } from '../logical-types/DateType'
@@ -11,7 +12,7 @@ import {
   getSubscriptionMock,
   getTopicMock,
   IMessageMock,
-  SCHEMA_DEFINITION_EXAMPLE, SCHEMA_EXAMPLE, schemaMock,
+  SCHEMA_DEFINITION_EXAMPLE, schemaServiceClientMock,
 } from './support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -22,9 +23,9 @@ const subscriptionMock = getSubscriptionMock({ iamMock: iamSubscriptionMock })
 const iamTopicMock = getIamMock()
 const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
+const schemaClientMock = schemaServiceClientMock
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const flushPromises = () => new Promise(setImmediate);
-
 
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
@@ -39,7 +40,9 @@ describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub, new ConsoleLogger())
+    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub,
+      schemaClientMock as unknown as SchemaServiceClient, new ConsoleLogger())
+    process.env['GCLOUD_PROJECT'] = 'project'
   })
 
   afterEach(() => {
@@ -53,6 +56,7 @@ describe('Subscriber', () => {
     subscriptionMock.setMetadata.mockReset()
     iamTopicMock.setPolicy.mockReset()
     iamSubscriptionMock.setPolicy.mockReset()
+    schemaClientMock.getSchema.mockReset()
   })
 
   describe('initialize', () => {
@@ -127,7 +131,8 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
-      subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub)
+      subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient)
 
       await subscriber.initialize()
 
@@ -154,7 +159,7 @@ describe('Subscriber', () => {
       beforeEach(() => {
         subscriber = new Subscriber(
           { topicName, subscriptionName, subscriptionOptions: deadLetterOptions },
-          clientMock as unknown as PubSub,
+          clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
         )
       })
 
@@ -201,7 +206,7 @@ describe('Subscriber', () => {
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
             { topicName, subscriptionName, subscriptionOptions: emptyOptions },
-            clientMock as unknown as PubSub,
+            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
           )
 
           await optionlessSubscriber.initialize()
@@ -258,7 +263,7 @@ describe('Subscriber', () => {
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
             { topicName, subscriptionName, subscriptionOptions: emptyOptions },
-            clientMock as unknown as PubSub,
+            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
           )
 
           await optionlessSubscriber.initialize()
@@ -321,8 +326,7 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
-      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
-
+      schemaClientMock.getSchema.mockResolvedValue([{definition: SCHEMA_DEFINITION_EXAMPLE}])
 
       await subscriber.initialize()
 

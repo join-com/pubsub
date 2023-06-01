@@ -102,6 +102,10 @@ export const schemaMock = {
   get: jest.fn(),
 }
 
+export const schemaServiceClientMock = {
+  getSchema: jest.fn()
+}
+
 export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
 }

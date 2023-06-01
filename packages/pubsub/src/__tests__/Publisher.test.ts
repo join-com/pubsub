@@ -99,7 +99,6 @@ describe('Publisher', () => {
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
-
       await publisher.initialize()
 
       await publisher.publishMsg(message)

@@ -2,7 +2,7 @@ import { replaceNullsWithUndefined } from '../util'
 
 describe('DataParser', () => {
     it('replaces null with undefined', () => {
-      const obj = { a: { b: null }, arr: [{c: null}] }
+      const obj = { a: { b: null }, arr: [{ c: null }] }
 
       replaceNullsWithUndefined(obj)
 

@@ -1,6 +1,5 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
-import { env } from '@join-com/process-env'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
@@ -64,7 +63,7 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscription?: Subscription
 
-  private readonly topicTypesCache: Record<string, Type> = {}
+  private readonly topicTypeRevisionsCache: Record<string, Type> = {}
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
@@ -116,15 +115,14 @@ export class Subscriber<T = unknown> {
     await this.subscription.close()
   }
 
-  private logMessage(message: Message, dataParsed: T, schemaRevisionId?: string) {
+  private logMessage(message: Message, dataParsed: T) {
     const messageInfo = {
       id: message.id,
       ackId: message.ackId,
       attributes: message.attributes,
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
-      deliveryAttempt: message.deliveryAttempt,
-      schemaRevisionId: schemaRevisionId
+      deliveryAttempt: message.deliveryAttempt
     }
 
     this.logger?.info(
@@ -148,24 +146,29 @@ export class Subscriber<T = unknown> {
     return dataParsed
   }
 
-  private async parseAvroMessage(message: Message, schemaId: string): Promise<T> {
-    const type: Type = await this.getTypeFromCacheOrRemote(schemaId)
+  private async parseAvroMessage(message: Message, schemaRevisionId: string): Promise<T> {
+    const type: Type = await this.getTypeFromCacheOrRemote(schemaRevisionId)
     return type.fromString(message.data.toString()) as T
   }
 
   private async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
-    const typeFromCache = this.topicTypesCache[schemaRevisionId]
+    const typeFromCache = this.topicTypeRevisionsCache[schemaRevisionId]
     if (typeFromCache) {
       return typeFromCache
     }
-    const revision = `projects/${env('GCLOUD_PROJECT').asString()}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
-    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revision })
-    // schema must always have a definition, so we want to fail if there is a wrong schema without a definition
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const schema = JSON.parse(remoteSchema.definition!) as Schema
+    const projectName = process.env['GCLOUD_PROJECT']
+    if (!projectName) {
+      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+    }
+    const revisionPath = `projects/${projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
+    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
 
+    if (!remoteSchema.definition) {
+      throw new Error(`Can't process schema ${schemaRevisionId} without definition`)
+    }
+    const schema = JSON.parse(remoteSchema.definition) as Schema
     const type = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
-    this.topicTypesCache[schemaRevisionId] = type
+    this.topicTypeRevisionsCache[schemaRevisionId] = type
 
     return type
   }

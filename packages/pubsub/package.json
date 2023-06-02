@@ -29,7 +29,6 @@
   },
   "dependencies": {
     "@google-cloud/pubsub": "^3.5.1",
-    "@join-com/process-env": "^1.2.0",
     "avsc": "^5.7.7"
   },
   "devDependencies": {

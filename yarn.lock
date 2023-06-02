@@ -830,11 +830,6 @@
     "@types/yargs" "^17.0.8"
     chalk "^4.0.0"
 
-"@join-com/process-env@^1.2.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@join-com/process-env/-/process-env-1.2.0.tgz#0f66f5ab85bea6e4558a44a596c4c7286cabfd62"
-  integrity sha512-xy63zl/YoQRIZL8rOeYy2bXr4+EGETHRkfnhiEEPSexRuz4OQA1lAmOBaBH5MLICEJQulpk1kqUQ2jf7u5M+7A==
-
 "@join-com/pubsub@^2.0.2":
   version "2.1.4"
   resolved "https://registry.yarnpkg.com/@join-com/pubsub/-/pubsub-2.1.4.tgz#027b21668e8e556a4fc4d3539dde5978a1ef83de"

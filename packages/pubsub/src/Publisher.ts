@@ -6,6 +6,7 @@ import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
+import { logWarnWhenUndefinedInNullPreserveFields } from './util'
 import Encoding = google.pubsub.v1.Encoding
 
 interface IMessageMetadata {
@@ -15,7 +16,8 @@ interface IMessageMetadata {
   SchemaType: string
   AvdlSchemaPathInGitRepo:  string,
   AvdlSchemaGitRemoteOriginUrl: string,
-  AvdlSchemaVersion: string
+  AvdlSchemaVersion: string,
+  PreserveNull?: string
 }
 
 type SchemaWithMetadata = Schema & IMessageMetadata
@@ -124,6 +126,9 @@ export class Publisher<T = unknown> {
         'and payload can be encoded with it', {payload: data, schemaMetadata: this.avroMessageMetadata})
       throw new Error(`Can't encode the avro message for the topic ${this.topicName}`)
     }
+    if (this.avroMessageMetadata && this.avroMessageMetadata['join_preserve_null']) {
+      logWarnWhenUndefinedInNullPreserveFields(data, this.avroMessageMetadata['join_preserve_null'], this.logger)
+    }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const buffer = Buffer.from(this.readerAvroType!.toString(data))
     const messageId = await this.topic.publishMessage({ data: buffer, attributes: this.avroMessageMetadata })
@@ -146,6 +151,9 @@ export class Publisher<T = unknown> {
     metadata['join_avdl_schema_git_remote_origin_url'] = schema.AvdlSchemaGitRemoteOriginUrl
     metadata['join_avdl_schema_version'] = schema.AvdlSchemaVersion
     metadata['join_pubsub_lib_version'] = this.getLibraryVersion()
+    if (schema.PreserveNull) {
+      metadata['join_preserve_null'] = schema.PreserveNull
+    }
 
     return metadata
   }

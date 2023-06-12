@@ -137,7 +137,7 @@ export class Subscriber<T = unknown> {
     // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
     if (schemaId) {
       dataParsed = await this.parseAvroMessage(message, schemaId)
-      replaceNullsWithUndefined(dataParsed)
+      replaceNullsWithUndefined(dataParsed, message.attributes['join_preserve_null'])
     } else {
       const dataParser = new DataParser()
       dataParsed = dataParser.parse(message.data) as T

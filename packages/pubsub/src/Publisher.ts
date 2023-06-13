@@ -111,8 +111,34 @@ export class Publisher<T = unknown> {
     if (this.avroSchemasProvided) {
       this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
       if (!this.topicHasAssignedSchema && await this.doesRegistryHaveTopicSchema()) {
-        await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
-        this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
+        const projectName = process.env['GCLOUD_PROJECT']
+        if (!projectName) {
+          throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+        }
+        this.topic.request(
+          {
+            client: 'PublisherClient',
+            method: 'updateTopic',
+            reqOpts: {
+              topic: {
+                name: `projects/${projectName}/topics/${this.topicName}`,
+                schemaSettings: { schema: `projects/${projectName}/schemas/${this.topicSchemaName}`, encoding: Encoding.JSON }
+              },
+              updateMask: {
+                paths: ['schema_settings'],
+              },
+            },
+            gaxOpts: {},
+          },
+          (err, _) => {
+            if (!err) {
+              this.topicHasAssignedSchema = true
+              this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
+            } else {
+              this.logger?.error(`Couldn't set schema '${this.topicSchemaName}'  to the topic '${this.topicName}'`)
+            }
+          },
+        );
       }
     }
   }

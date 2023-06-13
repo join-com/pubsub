@@ -68,7 +68,7 @@ describe('logWarnWhenUndefinedInNullPreserveFields', () => {
       expect(consoleMock.warn).toHaveBeenCalledOnce()
     })
 
-    it('doesn\'t log warn when undefined is inside NullPreserve fields', () => {
+    it('doesn\'t log warn when null is inside NullPreserve fields', () => {
       const obj = { a: { b: null }, arr: [{ c: null }] }
       logWarnWhenUndefinedInNullPreserveFields(obj, 'someField, arr', consoleMock as unknown as ILogger)
       expect(consoleMock.warn).not.toHaveBeenCalled()

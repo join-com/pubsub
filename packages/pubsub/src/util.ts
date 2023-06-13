@@ -7,9 +7,9 @@ export const replaceNullsWithUndefined = (obj: unknown, preserveNullFields?: str
     if (!isObject(obj)) {
       return
     }
-    const fieldsWithOnlyNullInside = parsePreserveNullFields(preserveNullFields)
+    const preserveNullFieldsList = parsePreserveNullFields(preserveNullFields)
     for (const key of Object.keys(obj)) {
-      if (!fieldsWithOnlyNullInside.includes(key)) {
+      if (!preserveNullFieldsList.includes(key)) {
         obj[key] = deepNullToUndefinedInObject(obj[key])
       }
     }

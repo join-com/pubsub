@@ -12,7 +12,7 @@ import {
   getSubscriptionMock,
   getTopicMock,
   IMessageMock,
-  SCHEMA_DEFINITION_EXAMPLE, schemaServiceClientMock,
+  SCHEMA_DEFINITION_EXAMPLE, SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE, schemaServiceClientMock,
 } from './support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -25,6 +25,7 @@ const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
 const schemaClientMock = schemaServiceClientMock
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
+const typeWithPreserveNull = Type.forSchema(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const flushPromises = () => new Promise(setImmediate);
 
 const subscriptionOptions: ISubscriptionOptions = {
@@ -303,6 +304,9 @@ describe('Subscriber', () => {
     const data = { id: 1, createdAt: new Date() }
     const avroData = { first: 'one', second: 'two', third: undefined,
       createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)')}
+    const avroDataPreserveNullMessageFromAvro = { first: 'one', second: 'two', third: undefined,
+      createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)'),
+      now: { id: null, firstName: null}}
 
     let messageMock: IMessageMock
 
@@ -342,6 +346,28 @@ describe('Subscriber', () => {
       await subscriptionMock.receiveMessage(messageMock)
       await flushPromises()
       expect(parsedMessage?.dataParsed).toEqual(avroData)
+    })
+
+    it('receives avro parsed data with null preserve fields', async () => {
+      topicMock.exists.mockResolvedValue([false])
+      subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}])
+
+      await subscriber.initialize()
+
+      messageMock.data = Buffer.from(typeWithPreserveNull.toString(avroDataPreserveNullMessageFromAvro))
+      messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_preserve_null': 'now'}
+
+      let parsedMessage: IParsedMessage<unknown> | undefined
+      subscriber.start(msg => {
+        parsedMessage = msg
+        return Promise.resolve()
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
+      expect(parsedMessage?.dataParsed).toEqual(avroDataPreserveNullMessageFromAvro)
     })
 
     it('unacknowledges message if processing fails', async () => {

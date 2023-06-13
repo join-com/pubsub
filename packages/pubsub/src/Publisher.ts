@@ -115,6 +115,7 @@ export class Publisher<T = unknown> {
         if (!projectName) {
           throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
         }
+
         this.topic.request(
           {
             client: 'PublisherClient',

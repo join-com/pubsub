@@ -306,7 +306,7 @@ describe('Subscriber', () => {
       createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)')}
     const avroDataPreserveNullMessageFromAvro = { first: 'one', second: 'two', third: undefined,
       createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)'),
-      now: { id: null, firstName: null}}
+      now: { id: null, firstName: null }}
 
     let messageMock: IMessageMock
 

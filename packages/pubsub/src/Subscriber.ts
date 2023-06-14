@@ -1,7 +1,11 @@
-import { IAM, Message, Subscription, Topic, PubSub, SubscriptionOptions } from '@google-cloud/pubsub'
+import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
+import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
+import { DateType } from './logical-types/DateType'
+import { replaceNullsWithUndefined } from './util'
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -48,6 +52,7 @@ interface ISubscriptionInitializationOptions {
 export class Subscriber<T = unknown> {
   readonly topicName: string
   readonly subscriptionName: string
+  readonly topicSchemaName: string
 
   private readonly topic: Topic
   private readonly subscription: Subscription
@@ -58,15 +63,19 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscription?: Subscription
 
+  private readonly topicTypeRevisionsCache: Record<string, Type> = {}
+
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
     pubSubClient: PubSub,
+    private readonly schemaServiceClient: SchemaServiceClient,
     private readonly logger?: ILogger,
   ) {
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
     this.topicName = topicName
     this.subscriptionName = subscriptionName
+    this.topicSchemaName = `${this.topicName}-generated-avro`
 
     this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
@@ -83,6 +92,7 @@ export class Subscriber<T = unknown> {
   public async initialize() {
     try {
       await this.initializeTopic(this.topicName, this.topic)
+
       await this.initializeDeadLetterTopic()
 
       await this.initializeSubscription(this.subscriptionName, this.subscription, this.getInitializationOptions())
@@ -112,7 +122,7 @@ export class Subscriber<T = unknown> {
       attributes: message.attributes,
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
-      deliveryAttempt: message.deliveryAttempt,
+      deliveryAttempt: message.deliveryAttempt
     }
 
     this.logger?.info(
@@ -121,20 +131,63 @@ export class Subscriber<T = unknown> {
     )
   }
 
-  private parseData(message: Message): T {
-    const dataParser = new DataParser()
-    const dataParsed = dataParser.parse(message.data) as T
+  private async parseData(message: Message): Promise<T> {
+    let dataParsed: T
+    const schemaId = message.attributes['googclient_schemarevisionid']
+    // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
+    if (schemaId) {
+      dataParsed = await this.parseAvroMessage(message, schemaId)
+      replaceNullsWithUndefined(dataParsed, message.attributes['join_preserve_null'])
+    } else {
+      const dataParser = new DataParser()
+      dataParsed = dataParser.parse(message.data) as T
+    }
     this.logMessage(message, dataParsed)
     return dataParsed
   }
 
-  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
-    return (message: Message) => {
-      const dataParsed = this.parseData(message)
+  private async parseAvroMessage(message: Message, schemaRevisionId: string): Promise<T> {
+    const type: Type = await this.getTypeFromCacheOrRemote(schemaRevisionId)
+    return type.fromString(message.data.toString()) as T
+  }
+
+  private async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
+    const typeFromCache = this.topicTypeRevisionsCache[schemaRevisionId]
+    if (typeFromCache) {
+      return typeFromCache
+    }
+    const projectName = process.env['GCLOUD_PROJECT']
+    if (!projectName) {
+      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+    }
+    const revisionPath = `projects/${projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
+    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
+
+    if (!remoteSchema.definition) {
+      throw new Error(`Can't process schema ${schemaRevisionId} without definition`)
+    }
+    const schema = JSON.parse(remoteSchema.definition) as Schema
+    const type = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
+    this.topicTypeRevisionsCache[schemaRevisionId] = type
+
+    return type
+  }
+
+  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
+    const asyncMessageProcessor = async (message: Message) => {
+      const dataParsed = await this.parseData(message)
       const messageParsed = Object.assign(message, { dataParsed })
       asyncCallback(messageParsed).catch(e => {
         message.nack()
         this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to process message:`, e)
+      })
+    }
+
+    return (message: Message) => {
+      asyncMessageProcessor(message).then(_ => {
+        return
+      }).catch(e => {
+        throw e
       })
     }
   }

@@ -1,4 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub'
+import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
 import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions } from './Subscriber'
 
@@ -12,9 +13,11 @@ export interface ISubscriber<T> {
 
 export class SubscriberFactory<T> {
   private readonly client: PubSub
+  private readonly schemaServiceClient: SchemaServiceClient
 
   constructor(private readonly defaultOptions: ISubscriptionOptions, private readonly logger: ILogger) {
     this.client = new PubSub()
+    this.schemaServiceClient = new SchemaServiceClient()
   }
 
   public getSubscriber<K extends keyof T>(
@@ -27,6 +30,6 @@ export class SubscriberFactory<T> {
       subscriptionName,
       subscriptionOptions: options ?? this.defaultOptions,
     }
-    return new Subscriber(subscriberOptions, this.client, this.logger)
+    return new Subscriber(subscriberOptions, this.client, this.schemaServiceClient, this.logger)
   }
 }

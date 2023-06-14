@@ -1,6 +1,97 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ISchema } from '@google-cloud/pubsub'
+import { ILogger } from '../../ILogger'
+
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
+
+export const SCHEMA_DEFINITION_EXAMPLE = {
+  'type': 'record',
+  'name': 'Avro',
+  'fields': [
+    {
+      'name': 'first',
+      'type': 'string'
+    },
+    {
+      'name': 'second',
+      'type': 'string',
+      'default': ''
+    },
+    {
+      'name': 'createdAt',
+      'type': {type: 'long', logicalType: 'timestamp-micros'}
+    },
+    {
+      'name': 'third',
+      'type': [
+        'null',
+        'string'
+      ],
+      'default': null
+    }
+  ],
+  'Event' : 'data-company-affiliate-referral-created',
+  'GeneratorVersion' : '1.0.0',
+  'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
+  'SchemaType' : 'WRITER',
+  'AvdlSchemaGitRemoteOriginUrl' : 'git@github.com:join-com/data.git',
+  'AvdlSchemaPathInGitRepo' : 'src/test/resources/input.avdl',
+  'AvdlSchemaVersion': 'commit-hash'
+}
+
+export const SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE = {
+  'type': 'record',
+  'name': 'Avro',
+  'fields': [
+    {
+      'name': 'first',
+      'type': 'string'
+    },
+    {
+      'name': 'second',
+      'type': 'string',
+      'default': ''
+    },
+    {
+      'name': 'createdAt',
+      'type': {type: 'long', logicalType: 'timestamp-micros'}
+    },
+    {
+      'name': 'third',
+      'type': [
+        'null',
+        'string'
+      ],
+      'default': null
+    },
+    {
+      'name' : 'now',
+      'type' : [ 'null', {
+        'type' : 'record',
+        'name' : 'Recruiter',
+        'fields' : [ {
+          'name' : 'id',
+          'type' : [ 'null', 'int' ],
+          'default' : null
+        }, {
+          'name' : 'firstName',
+          'type' : [ 'null', 'string' ],
+          'default' : null
+        }, ]
+      } ],
+      'default' : null
+    },
+  ],
+  'Event' : 'data-company-affiliate-referral-created',
+  'GeneratorVersion' : '1.0.0',
+  'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
+  'SchemaType' : 'WRITER',
+  'AvdlSchemaGitRemoteOriginUrl' : 'git@github.com:join-com/data.git',
+  'AvdlSchemaPathInGitRepo' : 'src/test/resources/input.avdl',
+  'AvdlSchemaVersion': 'commit-hash'
+}
+export const SCHEMA_EXAMPLE: ISchema = {definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE), revisionId: 'example'}
 
 export const getIamMock = () => ({
   setPolicy: jest.fn(),
@@ -56,7 +147,16 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
+  getMetadata: jest.fn()
 })
+
+export const schemaMock = {
+  get: jest.fn(),
+}
+
+export const schemaServiceClientMock = {
+  getSchema: jest.fn()
+}
 
 export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
@@ -64,12 +164,14 @@ export interface IClientMockOption {
 
 export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
   topic: jest.fn(() => topicMock),
+  schema: jest.fn(() => schemaMock)
 })
 
 export interface IMessageMock {
   data: Buffer
   ack: jest.Mock<unknown, any>
   nack: jest.Mock<unknown, any>
+  attributes?: Record<string, string>
 }
 
 export const getMessageMock = (data: unknown): IMessageMock => {
@@ -78,5 +180,23 @@ export const getMessageMock = (data: unknown): IMessageMock => {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
+    attributes: { }
+  }
+}
+
+export class ConsoleLogger implements ILogger {
+  error(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
+  }
+
+  info(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
+  }
+
+  warn(message: string, payload: unknown | undefined): void {
+    // eslint-disable-next-line no-console
+    console.log(message, payload)
   }
 }

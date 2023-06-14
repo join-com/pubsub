@@ -8,3 +8,4 @@ jest.config.js
 tsconfig.prod.tsbuildinfo
 tsconfig.prod.json
 tsconfig.json
+.npmrc

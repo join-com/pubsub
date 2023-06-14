@@ -1,3 +1,6 @@
+/**
+ * @deprecated remove the class as only avro should be used later
+ */
 export class DataParser {
   public parse(data: Buffer): unknown {
     const dateTimeRegex = /^(\d{4}-\d\d-\d\d([tT][\d:.]*)?)([zZ]|([+-])(\d\d):?(\d\d))?$/

@@ -9,14 +9,14 @@ export interface IPublisher<T> {
   flush: () => Promise<void>
 }
 
-export class PublisherFactory<T> {
+export class PublisherFactory<TypeMap> {
   private readonly client: PubSub
 
-  constructor(private readonly logger: ILogger) {
+  constructor(private readonly logger: ILogger, private readonly avroSchemas?: Record<keyof TypeMap, { writer: object, reader: object }>) {
     this.client = new PubSub()
   }
 
-  public getPublisher<K extends keyof T>(topic: K): IPublisher<T[K]> {
-    return new Publisher(topic.toString(), this.client, this.logger)
+  public getPublisher<Topic extends keyof TypeMap> (topic: Topic): IPublisher<TypeMap[Topic]> {
+    return new Publisher(topic.toString(), this.client, this.logger, this.avroSchemas?.[topic])
   }
 }

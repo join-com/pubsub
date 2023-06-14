@@ -327,7 +327,7 @@ describe('Subscriber', () => {
     })
 
     it('receives avro parsed data', async () => {
-      topicMock.exists.mockResolvedValue([false])
+      topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}])

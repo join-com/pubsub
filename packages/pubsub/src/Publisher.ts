@@ -210,6 +210,11 @@ export class Publisher<T = unknown> {
   }
 
   public async doesRegistryHaveTopicSchema(): Promise<boolean> {
-    return !!(await this.client.schema(this.topicSchemaName).get());
+    try {
+      return !!(await this.client.schema(this.topicSchemaName).get())
+    } catch (e) {
+      this.logger?.info(`Schema ${this.topicSchemaName} can't be found`)
+      return false
+    }
   }
 }

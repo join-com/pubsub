@@ -213,7 +213,7 @@ export class Publisher<T = unknown> {
     try {
       return !!(await this.client.schema(this.topicSchemaName).get())
     } catch (e) {
-      this.logger?.info(`Schema ${this.topicSchemaName} can't be found`)
+      this.logger?.info(`Schema ${this.topicSchemaName} can't be found`, e)
       return false
     }
   }

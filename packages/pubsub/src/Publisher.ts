@@ -86,7 +86,7 @@ export class Publisher<T = unknown> {
 
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
-      if (!this.writerAvroType.isValid(data)) {
+      if (!this.writerAvroType.isValid(data, {noUndeclaredFields: true})) {
         this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata })
       }
     }

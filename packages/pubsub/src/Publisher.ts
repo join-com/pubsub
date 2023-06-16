@@ -86,7 +86,7 @@ export class Publisher<T = unknown> {
 
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
-      if (!this.writerAvroType.isValid(data)) {
+      if (!this.writerAvroType.isValid(data, {noUndeclaredFields: true})) {
         this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata })
       }
     }
@@ -210,6 +210,11 @@ export class Publisher<T = unknown> {
   }
 
   public async doesRegistryHaveTopicSchema(): Promise<boolean> {
-    return !!(await this.client.schema(this.topicSchemaName).get());
+    try {
+      return !!(await this.client.schema(this.topicSchemaName).get())
+    } catch (e) {
+      this.logger?.info(`Schema ${this.topicSchemaName} can't be found`, e)
+      return false
+    }
   }
 }

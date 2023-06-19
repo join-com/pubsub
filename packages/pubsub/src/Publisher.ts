@@ -176,7 +176,7 @@ export class Publisher<T = unknown> {
 
   private async sendJsonMessage(message: MessageOptions) {
     const messageId = await this.topic.publishMessage(message)
-    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { message, messageId })
+    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { data: message.json as unknown, messageId })
   }
 
   private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {

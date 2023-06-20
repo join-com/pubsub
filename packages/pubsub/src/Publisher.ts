@@ -84,9 +84,9 @@ export class Publisher<T = unknown> {
     }
   }
 
-  private logWarnIfMessageViolatesSchema(data: T): void {
+  public logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
-      if (!this.writerAvroType.isValid(data, {noUndeclaredFields: true})) {
+      if (!this.writerAvroType.isValid(data, {noUndeclaredFields: true, errorHook: (path, any, type) => this.logger?.warn(`path: ${path.toString()}, any: ${JSON.stringify(any)}, type: ${JSON.stringify(type)}`)})) {
         this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata })
       }
     }

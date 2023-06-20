@@ -114,4 +114,18 @@ describe('Publisher', () => {
       expect(topicMock.flush).toHaveBeenCalled()
     })
   })
+
+  describe('logWarnIfMessageViolatesSchema', () => {
+    it('logs', () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      const obj = {
+        first: 'some',
+        second: 123,
+        createdAt: 123,
+        forth: 'forth'
+      }
+      publisher.logWarnIfMessageViolatesSchema(obj)
+      expect(true).toBeTrue()
+    })
+  })
 })

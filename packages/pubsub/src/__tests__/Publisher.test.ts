@@ -105,6 +105,29 @@ describe('Publisher', () => {
 
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
     })
+
+    it('logs invalid properties when schema does not match', async () => {
+      const consoleLogger = new ConsoleLogger()
+      const loggerSpy = jest.spyOn(consoleLogger, 'warn')
+
+      const invalidMessage = {
+        first: 'some',
+        second: 123,
+        createdAt: 123,
+        fourth: { flag: 'string' }
+      }
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, consoleLogger, schemas)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([])
+
+      await publisher.initialize()
+      await publisher.publishMsg(invalidMessage)
+
+      expect(loggerSpy).toHaveBeenCalledWith('[schema-violation] [topic-name] Message violates writer avro schema',
+        expect.objectContaining({
+          invalidPaths: ['second', 'createdAt', 'fourth.flag'],
+        }))
+    })
   })
 
   describe('flush', () => {

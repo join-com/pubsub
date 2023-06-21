@@ -84,7 +84,7 @@ export class Publisher<T = unknown> {
     }
   }
 
-  public logWarnIfMessageViolatesSchema(data: T): void {
+  private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
       const invalidPaths: string[] = [];
       if (!this.writerAvroType.isValid(data, {errorHook: path => invalidPaths.push(path.join('.'))} )) {

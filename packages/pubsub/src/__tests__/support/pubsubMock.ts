@@ -29,6 +29,19 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
         'string'
       ],
       'default': null
+    },
+    {
+      'name': 'fourth',
+      'type': ['null', {
+        'type': 'record',
+        'name': 'nestedEntity',
+        'fields': [{
+          'name': 'flag',
+          'type': ['null', 'boolean'],
+          'default': null,
+        }],
+      }],
+      'default': null,
     }
   ],
   'Event' : 'data-company-affiliate-referral-created',

@@ -30,22 +30,49 @@ const getSchemaServiceClientMock = () => ({
 })
 
 describe('deployAvroSchemas', () => {
-    it('does nothing and logs when no enabled avro topics', async () => {
+    beforeEach(() => {
+        process.env['GCLOUD_PROJECT'] = 'project'
+    })
+
+    it('does nothing when no enabled avro topics', async () => {
         const schemasToDeploy = {
             'data-user-created': false,
             'data-user-deleted': false,
         }
-        const logger = getLoggerMock();
-        const schemaDeployer = new SchemaDeployer(logger, getPubsubMock() as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(getLoggerMock(), getPubsubMock() as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
-        await schemaDeployer.deployAvroSchemas(schemasToDeploy, {})
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, {})
 
-        expect(logger.info).toHaveBeenCalledWith('Finished deployAvroSchemas, no schemas to deploy')
+        expect(schemasCreated).toBe(0)
+        expect(revisionsCreated).toBe(0)
     })
 
-    it('does nothing and logs when schema exist', async () => {
-        const logger = getLoggerMock();
+    it('throws error when non-avro schema exists with avro name', async () => {
+        const nonAvroSchemaWithAvroName = {
+            type: 'PROTOCOL_BUFFER',
+            name: 'data-company-affiliate-referral-created',
+            definition: 'some'
+        }
+        const asyncIterable = {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async *[Symbol.asyncIterator]() {
+                yield nonAvroSchemaWithAvroName
+            }
+        }
+        const pubsubMock = getPubsubMock(asyncIterable);
+        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+          getSchemaServiceClientMock() as unknown as SchemaServiceClient)
+
+        const schemasToDeploy = { 'data-company-affiliate-referral-created': true }
+        const readerSchemas = {'data-company-affiliate-referral-created': processApplicationStateReaderSchema};
+
+        await expect(schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)).rejects
+          .toThrow('Non avro schema exists for avro topic \'data-company-affiliate-referral-created\', please remove it before starting the service')
+
+    })
+
+    it('does nothing and logs when schema revisions match', async () => {
         const asyncIterable = {
             // eslint-disable-next-line @typescript-eslint/require-await
             async *[Symbol.asyncIterator]() {
@@ -53,15 +80,16 @@ describe('deployAvroSchemas', () => {
             }
         }
         const pubsubMock = getPubsubMock(asyncIterable);
-        const schemaDeployer = new SchemaDeployer(logger, pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'data-cmd-process-application-state': true }
         const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema};
 
-        await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
-        expect(logger.info).toHaveBeenLastCalledWith('Finished deployAvroSchemas, all schemas are already deployed')
+        expect(schemasCreated).toBe(0)
+        expect(revisionsCreated).toBe(0)
     })
 
     it('creates schema when it doesn\'t exist', async () => {
@@ -78,14 +106,19 @@ describe('deployAvroSchemas', () => {
         }
         const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema};
 
-        await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
+        expect(schemasCreated).toBe(1)
+        expect(revisionsCreated).toBe(0)
         expect(pubsubMock.createSchema).toHaveBeenCalledWith('data-cmd-process-application-state-generated-avro', 'AVRO', JSON.stringify(readerSchemas['data-cmd-process-application-state'].reader))
     })
 
     it('creates schema revision when schemas don\'t match', async () => {
-        const projectName = 'project'
-        process.env['GCLOUD_PROJECT'] = projectName
+        const processApplicationStateGCloudSchema = {
+            type: 'PROTOBUF',
+            name: 'data-company-affiliate-referral-created',
+            definition: processApplicationStateStringSchema
+        }
         const asyncIterable = {
             // eslint-disable-next-line @typescript-eslint/require-await
             async *[Symbol.asyncIterator]() {
@@ -101,10 +134,12 @@ describe('deployAvroSchemas', () => {
         }
         const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchemaUpdated};
 
-        await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
+        expect(schemasCreated).toBe(0)
+        expect(revisionsCreated).toBe(1)
         const schemaName = 'data-cmd-process-application-state' + SCHEMA_NAME_SUFFIX
-        const schemaPath = `projects/${projectName}/schemas/${schemaName}`
+        const schemaPath = `projects/${process.env['GCLOUD_PROJECT'] as string}/schemas/${schemaName}`
         expect(schemaServiceClientMock.commitSchema).toHaveBeenCalledWith({
             name: schemaPath, schema: {
                 name: schemaPath, type: 'AVRO', definition: JSON.stringify(processApplicationStateReaderSchemaUpdated.reader),

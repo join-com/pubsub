@@ -78,14 +78,14 @@ export class SchemaDeployer {
 
   private getEnabledTopicSchemas(schemasConfig: Record<string, boolean>, readerSchemas: Record<string, ReaderAvroSchema>)
     : Map<string, string> {
-    const enabledTopicSchemas = new Map<string, string>()
+    const enabledTopicsSchemas = new Map<string, string>()
     for (const topicName in schemasConfig) {
       const readerSchema = readerSchemas[topicName]
       if (schemasConfig[topicName] && readerSchema) {
-        enabledTopicSchemas.set(topicName, JSON.stringify(readerSchema.reader))
+        enabledTopicsSchemas.set(topicName, JSON.stringify(readerSchema.reader))
       }
     }
-    return enabledTopicSchemas;
+    return enabledTopicsSchemas;
   }
 
   private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>, topicsSchemaConfig: Record<string, boolean>)

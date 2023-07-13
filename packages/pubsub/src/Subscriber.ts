@@ -13,6 +13,10 @@ export interface IParsedMessage<T = unknown> {
   nack: () => void
 }
 
+export interface IMessageInfo{
+  id: string
+}
+
 export interface ISubscriptionOptions {
   ackDeadline?: number
   allowExcessMessages?: boolean
@@ -103,7 +107,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public start(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) {
+  public start(asyncCallback: (msg: IParsedMessage<T>, info : IMessageInfo) => Promise<void>) {
     this.subscription.on('error', this.processError)
     this.subscription.on('message', this.processMsg(asyncCallback))
 
@@ -173,11 +177,14 @@ export class Subscriber<T = unknown> {
     return type
   }
 
-  private processMsg(asyncCallback: (msg: IParsedMessage<T>) => Promise<void>): (message: Message) => void {
+  private processMsg(asyncCallback: (msg: IParsedMessage<T> , info: {id:string}) => Promise<void>): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {
       const dataParsed = await this.parseData(message)
       const messageParsed = Object.assign(message, { dataParsed })
-      asyncCallback(messageParsed).catch(e => {
+      const info : IMessageInfo = {
+        id: message.id
+      }
+      asyncCallback(messageParsed , info).catch(e => {
         message.nack()
         this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to process message:`, e)
       })

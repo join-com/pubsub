@@ -1,13 +1,16 @@
+import { IMessageInfo, IParsedMessage } from './Subscriber'
 import { ISubscriber } from './SubscriberFactory'
+
+
 
 export abstract class MessageHandler<T = unknown> {
   protected constructor(private readonly subscriber: ISubscriber<T>) {}
 
-  protected abstract handle(event: T): Promise<void>
+  protected abstract handle(event: T , info: IMessageInfo): Promise<void>
 
   public start() {
-    this.subscriber.start(async msg => {
-      await this.handle(msg.dataParsed)
+    this.subscriber.start(async (msg:IParsedMessage<T>, info:IMessageInfo) => {
+      await this.handle(msg.dataParsed, info)
       msg.ack()
     })
   }

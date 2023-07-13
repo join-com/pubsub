@@ -1,8 +1,6 @@
 import { IMessageInfo, IParsedMessage } from './Subscriber'
 import { ISubscriber } from './SubscriberFactory'
 
-
-
 export abstract class MessageHandler<T = unknown> {
   protected constructor(private readonly subscriber: ISubscriber<T>) {}
 

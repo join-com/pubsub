@@ -1,13 +1,13 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
-import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions } from './Subscriber'
+import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions, IMessageInfo } from './Subscriber'
 
 export interface ISubscriber<T> {
   topicName: string
   subscriptionName: string
   initialize: () => Promise<void>
-  start: (asyncCallback: (msg: IParsedMessage<T>) => Promise<void>) => void
+  start: (asyncCallback: (msg: IParsedMessage<T> , info:IMessageInfo) => Promise<void>) => void
   stop: () => Promise<void>
 }
 

@@ -1,10 +1,10 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
-import { Schema, Type } from 'avsc'
+import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
 import { ILogger } from './ILogger'
-import { DateType } from './logical-types/DateType'
+import { SchemaCache } from './SchemaCache'
 import { replaceNullsWithUndefined } from './util'
 
 export interface IParsedMessage<T = unknown> {
@@ -68,7 +68,7 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterTopic?: Topic
   private readonly deadLetterSubscription?: Subscription
 
-  private readonly topicTypeRevisionsCache: Record<string, Type> = {}
+  private readonly schemaCache: SchemaCache
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
@@ -84,6 +84,7 @@ export class Subscriber<T = unknown> {
 
     this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
+    this.schemaCache = new SchemaCache(this.schemaServiceClient, this.topicSchemaName)
 
     if (this.isDeadLetterPolicyEnabled()) {
       this.deadLetterTopicName = `${subscriptionName}-unack`
@@ -152,31 +153,10 @@ export class Subscriber<T = unknown> {
   }
 
   private async parseAvroMessage(message: Message, schemaRevisionId: string): Promise<T> {
-    const type: Type = await this.getTypeFromCacheOrRemote(schemaRevisionId)
+    const type: Type = await this.schemaCache.getTypeFromCacheOrRemote(schemaRevisionId)
     return type.fromString(message.data.toString()) as T
   }
 
-  private async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
-    const typeFromCache = this.topicTypeRevisionsCache[schemaRevisionId]
-    if (typeFromCache) {
-      return typeFromCache
-    }
-    const projectName = process.env['GCLOUD_PROJECT']
-    if (!projectName) {
-      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
-    }
-    const revisionPath = `projects/${projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
-    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
-
-    if (!remoteSchema.definition) {
-      throw new Error(`Can't process schema ${schemaRevisionId} without definition`)
-    }
-    const schema = JSON.parse(remoteSchema.definition) as Schema
-    const type = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
-    this.topicTypeRevisionsCache[schemaRevisionId] = type
-
-    return type
-  }
 
   private processMsg(asyncCallback: (msg: IParsedMessage<T> , info: IMessageInfo) => Promise<void>): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {

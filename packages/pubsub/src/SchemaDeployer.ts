@@ -1,4 +1,4 @@
-import { PubSub } from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
 
@@ -8,6 +8,7 @@ interface ISchemasForDeployment {
 }
 interface ISchemaWithEvent {
   Event: string
+  fields: unknown
 }
 interface IDeploymentResult {
   schemasCreated: number,
@@ -30,14 +31,14 @@ export class SchemaDeployer {
     if (!process.env['GCLOUD_PROJECT']) {
       throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
     }
-    const topicSchemasToDeploy = this.getEnabledTopicSchemas(topicsSchemaConfig, topicReaderSchemas);
+    const topicSchemasToDeploy = this.getEnabledTopicSchemas(topicsSchemaConfig, topicReaderSchemas)
     if (topicSchemasToDeploy.size === 0) {
       this.logger.info('Finished deployAvroSchemas, no schemas to deploy')
       return {schemasCreated: 0, revisionsCreated: 0}
     }
     this.logger.info(`Found ${topicSchemasToDeploy.size} schemas enabled for deployment`)
 
-    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy, topicsSchemaConfig);
+    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy, topicsSchemaConfig)
     if (forCreate.size === 0 && forNewRevision.size === 0) {
       this.logger.info('Finished deployAvroSchemas, all schemas are already deployed')
       return {schemasCreated: 0, revisionsCreated: 0}
@@ -85,7 +86,7 @@ export class SchemaDeployer {
         enabledTopicsSchemas.set(topicName, JSON.stringify(readerSchema.reader))
       }
     }
-    return enabledTopicsSchemas;
+    return enabledTopicsSchemas
   }
 
   private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>, topicsSchemaConfig: Record<string, boolean>)
@@ -111,8 +112,9 @@ export class SchemaDeployer {
       const eventName = parsedDefinition.Event
       if (topicSchemasToDeploy.has(eventName)) {
         forCreate.delete(eventName)
-        const newDefinition = topicSchemasToDeploy.get(eventName);
-        if (newDefinition && definition !== newDefinition) {
+        const newDefinition = topicSchemasToDeploy.get(eventName) as string
+        const newParsedDefinition = JSON.parse(newDefinition) as ISchemaWithEvent
+        if (JSON.stringify(parsedDefinition.fields) !== JSON.stringify(newParsedDefinition.fields)) {
           forNewRevision.set(eventName, newDefinition)
         }
       }

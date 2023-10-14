@@ -1,9 +1,10 @@
-import { PubSub } from '@google-cloud/pubsub';
-import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1';
+import { PubSub } from '@google-cloud/pubsub'
+import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { SCHEMA_NAME_SUFFIX, SchemaDeployer } from '../SchemaDeployer'
 
 const processApplicationStateStringSchema = '{"type":"record","name":"ProcessApplicationState","fields":[{"name":"applicationId","type":["null","int"],"default":null}],"Event":"data-cmd-process-application-state","SchemaType":"READER","AvdlSchemaVersion":"4adb1df1c9243e24b937ddd165abf7572d7e2491","AvdlSchemaGitRemoteOriginUrl":"git@github.com:join-com/data.git","AvdlSchemaPathInGitRepo":"schemas/avro/commands/commands.avdl","GeneratorVersion":"387a0b3f2c890dc67f99085b7c94ff4bdc9cc967","GeneratorGitRemoteOriginUrl":"https://github.com/join-com/avro-join"}'
 const processApplicationStateReaderSchema = {'reader':{'type':'record','name':'ProcessApplicationState','fields':[{'name':'applicationId','type':['null','int'],'default':null}],'Event':'data-cmd-process-application-state','SchemaType':'READER','AvdlSchemaVersion':'4adb1df1c9243e24b937ddd165abf7572d7e2491','AvdlSchemaGitRemoteOriginUrl':'git@github.com:join-com/data.git','AvdlSchemaPathInGitRepo':'schemas/avro/commands/commands.avdl','GeneratorVersion':'387a0b3f2c890dc67f99085b7c94ff4bdc9cc967','GeneratorGitRemoteOriginUrl':'https://github.com/join-com/avro-join'}}
+const processApplicationStateReaderSchemaOnlyCommitChanged = {'reader':{'type':'record','name':'ProcessApplicationState','fields':[{'name':'applicationId','type':['null','int'],'default':null}],'Event':'data-cmd-process-application-state','SchemaType':'READER','AvdlSchemaVersion':'differentCommitHash','AvdlSchemaGitRemoteOriginUrl':'git@github.com:join-com/data.git','AvdlSchemaPathInGitRepo':'schemas/avro/commands/commands.avdl','GeneratorVersion':'387a0b3f2c890dc67f99085b7c94ff4bdc9cc967','GeneratorGitRemoteOriginUrl':'https://github.com/join-com/avro-join'}}
 const processApplicationStateReaderSchemaUpdated = {'reader':{'type':'record','name':'ProcessApplicationState','fields':[{'name':'applicationId','type':['null','int'],'default':null},{'name':'userId','type':['null','int'],'default':null}],'Event':'data-cmd-process-application-state','SchemaType':'READER','AvdlSchemaVersion':'4adb1df1c9243e24b937ddd165abf7572d7e2491','AvdlSchemaGitRemoteOriginUrl':'git@github.com:join-com/data.git','AvdlSchemaPathInGitRepo':'schemas/avro/commands/commands.avdl','GeneratorVersion':'387a0b3f2c890dc67f99085b7c94ff4bdc9cc967','GeneratorGitRemoteOriginUrl':'https://github.com/join-com/avro-join'}}
 
 const processApplicationStateGCloudSchema = {
@@ -18,7 +19,7 @@ const getLoggerMock = () => ({
     error: jest.fn(),
 })
 
-type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ name: string; definition: string }> }
+type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ name: string, definition: string }> }
 const getPubsubMock = (asyncIterable: ListSchemaAsyncIteratorMock
                          = undefined as unknown as ListSchemaAsyncIteratorMock) => ({
     listSchemas: jest.fn().mockReturnValue(asyncIterable),
@@ -60,12 +61,12 @@ describe('deployAvroSchemas', () => {
                 yield nonAvroSchemaWithAvroName
             }
         }
-        const pubsubMock = getPubsubMock(asyncIterable);
+        const pubsubMock = getPubsubMock(asyncIterable)
         const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'data-company-affiliate-referral-created': true }
-        const readerSchemas = {'data-company-affiliate-referral-created': processApplicationStateReaderSchema};
+        const readerSchemas = {'data-company-affiliate-referral-created': processApplicationStateReaderSchema}
 
         await expect(schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)).rejects
           .toThrow('Non avro schema exists for avro topic \'data-company-affiliate-referral-created\', please remove it before starting the service')
@@ -79,12 +80,12 @@ describe('deployAvroSchemas', () => {
                 yield processApplicationStateGCloudSchema
             }
         }
-        const pubsubMock = getPubsubMock(asyncIterable);
+        const pubsubMock = getPubsubMock(asyncIterable)
         const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'data-cmd-process-application-state': true }
-        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema};
+        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema}
 
         const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
@@ -98,13 +99,13 @@ describe('deployAvroSchemas', () => {
             async *[Symbol.asyncIterator]() {
             }
         }
-        const pubsubMock = getPubsubMock(asyncIterable);
+        const pubsubMock = getPubsubMock(asyncIterable)
         const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,
         }
-        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema};
+        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchema}
 
         const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
@@ -125,14 +126,14 @@ describe('deployAvroSchemas', () => {
                 yield processApplicationStateGCloudSchema
             }
         }
-        const pubsubMock = getPubsubMock(asyncIterable);
+        const pubsubMock = getPubsubMock(asyncIterable)
         const schemaServiceClientMock = getSchemaServiceClientMock() as unknown as SchemaServiceClient
         const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           schemaServiceClientMock)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,
         }
-        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchemaUpdated};
+        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchemaUpdated}
 
         const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
 
@@ -145,5 +146,25 @@ describe('deployAvroSchemas', () => {
                 name: schemaPath, type: 'AVRO', definition: JSON.stringify(processApplicationStateReaderSchemaUpdated.reader),
             },
         })
+    })
+
+    it('does nothing and logs when only revisionId changed', async () => {
+        const asyncIterable = {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async *[Symbol.asyncIterator]() {
+                yield processApplicationStateGCloudSchema
+            }
+        }
+        const pubsubMock = getPubsubMock(asyncIterable)
+        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+          getSchemaServiceClientMock() as unknown as SchemaServiceClient)
+
+        const schemasToDeploy = { 'data-cmd-process-application-state': true }
+        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchemaOnlyCommitChanged}
+
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
+
+        expect(schemasCreated).toBe(0)
+        expect(revisionsCreated).toBe(0)
     })
 })

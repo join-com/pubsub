@@ -73,7 +73,7 @@ describe('deployAvroSchemas', () => {
 
     })
 
-    it('does nothing and logs when schema revisions match', async () => {
+    it('does nothing when schemas fields match', async () => {
         const asyncIterable = {
             // eslint-disable-next-line @typescript-eslint/require-await
             async *[Symbol.asyncIterator]() {
@@ -114,7 +114,7 @@ describe('deployAvroSchemas', () => {
         expect(pubsubMock.createSchema).toHaveBeenCalledWith('data-cmd-process-application-state-generated-avro', 'AVRO', JSON.stringify(readerSchemas['data-cmd-process-application-state'].reader))
     })
 
-    it('creates schema revision when schemas don\'t match', async () => {
+    it('creates schema revision when schema fields don\'t match', async () => {
         const processApplicationStateGCloudSchema = {
             type: 'PROTOBUF',
             name: 'data-company-affiliate-referral-created',
@@ -148,7 +148,7 @@ describe('deployAvroSchemas', () => {
         })
     })
 
-    it('does nothing and logs when only revisionId changed', async () => {
+    it('does nothing when only revisionId changed and fields match', async () => {
         const asyncIterable = {
             // eslint-disable-next-line @typescript-eslint/require-await
             async *[Symbol.asyncIterator]() {

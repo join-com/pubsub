@@ -13,7 +13,15 @@ export class DateType extends types.LogicalType {
     return new Date(val / 1000)
   }
   _toValue(date: any) {
-    return date instanceof Date ? date.getTime() * 1000 : undefined
+    if (!(date instanceof Date)) {
+      return undefined
+    }
+    let dateInMillis = date.getTime() * 1000
+    if (Number.isSafeInteger(dateInMillis)) {
+      return dateInMillis
+    } else {
+      return Number.MAX_SAFE_INTEGER - 1
+    }
   }
   _resolve(type: Type) {
     if (Type.isType(type, 'logical:timestamp-micros')) {

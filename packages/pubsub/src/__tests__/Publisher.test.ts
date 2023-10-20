@@ -6,7 +6,7 @@ import { Publisher } from '../Publisher'
 import {
   ConsoleLogger,
   getClientMock,
-  getTopicMock,
+  getTopicMock, IMessageType,
   SCHEMA_DEFINITION_EXAMPLE,
   SCHEMA_EXAMPLE,
   schemaMock,
@@ -97,7 +97,7 @@ describe('Publisher', () => {
     it('publishes avro json encoded object', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
       topicMock.exists.mockResolvedValue([true])
-      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
       await publisher.initialize()
 
@@ -127,6 +127,24 @@ describe('Publisher', () => {
         expect.objectContaining({
           invalidPaths: ['second', 'createdAt', 'fourth.flag'],
         }))
+    })
+
+    it('publishes avro json with max allowed date value when date in micros overflows MAX_SAFE_INTEGER', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+      await publisher.initialize()
+
+      const date = new Date()
+      date.setFullYear(3000)
+      const message = { first: 'one', createdAt: date }
+      await publisher.publishMsg(message)
+
+      const avroMessage = Buffer.from(type.toString(message))
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+      const decodedMessage = type.fromString(avroMessage.toString()) as IMessageType
+      expect(decodedMessage.createdAt).toEqual(new Date((Number.MAX_SAFE_INTEGER - 1) / 1000))
     })
   })
 

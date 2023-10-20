@@ -5,6 +5,14 @@ import { ILogger } from '../../ILogger'
 type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
+export interface IMessageType {
+  first?: string,
+  second?: string,
+  createdAt?: Date,
+  third?: string,
+  fourth?: {flag: boolean}
+}
+
 export const SCHEMA_DEFINITION_EXAMPLE = {
   'type': 'record',
   'name': 'Avro',

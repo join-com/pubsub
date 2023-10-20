@@ -20,6 +20,7 @@ export class DateType extends types.LogicalType {
     if (Number.isSafeInteger(dateInMillis)) {
       return dateInMillis
     } else {
+      // max safe date in micros is "2255-06-05T23:47:34.740Z"
       return Number.MAX_SAFE_INTEGER - 1
     }
   }

@@ -144,7 +144,7 @@ describe('Publisher', () => {
       const avroMessage = Buffer.from(type.toString(message))
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
       const decodedMessage = type.fromString(avroMessage.toString()) as IMessageType
-      expect(decodedMessage.createdAt).toEqual(new Date((Number.MAX_SAFE_INTEGER - 1) / 1000))
+      expect(decodedMessage.createdAt).toEqual(new Date('2255-06-05T23:47:34.740Z'))
     })
   })
 

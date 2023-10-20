@@ -6,7 +6,7 @@ import { Publisher } from '../Publisher'
 import {
   ConsoleLogger,
   getClientMock,
-  getTopicMock,
+  getTopicMock, IMessageType,
   SCHEMA_DEFINITION_EXAMPLE,
   SCHEMA_EXAMPLE,
   schemaMock,
@@ -20,6 +20,8 @@ const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: 
 const processAbortSpy = jest.spyOn(process, 'abort')
 const schemas = {writer: SCHEMA_DEFINITION_EXAMPLE, reader: SCHEMA_DEFINITION_EXAMPLE}
 
+const DATE_WITH_UNSAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('3000-01-01T00:00:00.000Z')
+const MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('2255-06-05T23:47:34.740Z')
 
 describe('Publisher', () => {
   let publisher: Publisher
@@ -97,7 +99,7 @@ describe('Publisher', () => {
     it('publishes avro json encoded object', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
       topicMock.exists.mockResolvedValue([true])
-      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
       await publisher.initialize()
 
@@ -127,6 +129,22 @@ describe('Publisher', () => {
         expect.objectContaining({
           invalidPaths: ['second', 'createdAt', 'fourth.flag'],
         }))
+    })
+
+    it('publishes avro json with max allowed date value when date in micros overflows MAX_SAFE_INTEGER', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
+      await publisher.initialize()
+
+      const message = { first: 'one', createdAt: DATE_WITH_UNSAFE_NUMBER_TIMESTAMP_IN_MICROS }
+      await publisher.publishMsg(message)
+
+      const avroMessage = Buffer.from(type.toString(message))
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+      const decodedMessage = type.fromString(avroMessage.toString()) as IMessageType
+      expect(decodedMessage.createdAt).toEqual(MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS)
     })
   })
 

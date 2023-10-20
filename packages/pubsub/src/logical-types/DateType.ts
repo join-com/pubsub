@@ -17,6 +17,12 @@ export class DateType extends types.LogicalType {
       return undefined
     }
     let dateInMillis = date.getTime() * 1000
+    // If number is not a safe integer, it will lose precision during conversion:
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+    // Avsc will throw errors trying to convert number larger than Number.MAX_SAFE_INTEGER - 1
+    // Only possibility to fix is to use custom long types like BigInt, but still it will not work for json conversion,
+    // because of that limiting date to max possible date in micros, if received value larger than that
+    // https://github.com/mtth/avsc/wiki/Advanced-usage#custom-long-types
     if (Number.isSafeInteger(dateInMillis)) {
       return dateInMillis
     } else {

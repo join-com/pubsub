@@ -18,7 +18,7 @@ const getLoggerMock = () => ({
     error: jest.fn(),
 })
 
-type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ definition: string }> }
+type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ type: string, definition: string, name?:string }> }
 const getPubsubMock = (asyncIterable: ListSchemaAsyncIteratorMock
                          = undefined as unknown as ListSchemaAsyncIteratorMock) => ({
     listSchemas: jest.fn().mockReturnValue(asyncIterable),
@@ -53,6 +53,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
     it('throws error when non-avro schema exists with avro name', async () => {
         const nonAvroSchemaWithAvroName = {
             type: 'PROTOCOL_BUFFER',
+            name: 'event-generated-avro',
             definition: 'some'
         }
         const asyncIterable = {
@@ -69,7 +70,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
         const readerSchemas = {'data-company-affiliate-referral-created': processApplicationStateReaderSchema}
 
         await expect(schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)).rejects
-          .toThrow('Non avro schema exists for avro topic \'data-company-affiliate-referral-created\', please remove it before starting the service')
+          .toThrow('Non avro schema exists for avro topic \'event-generated-avro\', please remove it before starting the service')
 
     })
 

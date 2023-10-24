@@ -38,7 +38,7 @@ export class SchemaDeployer {
     }
     this.logger.info(`Found ${topicSchemasToDeploy.size} schemas enabled for deployment`)
 
-    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy, topicsSchemaConfig)
+    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy)
     if (forCreate.size === 0 && forNewRevision.size === 0) {
       this.logger.info('Finished deployAvroSchemas, all schemas are already deployed')
       return {schemasCreated: 0, revisionsCreated: 0}
@@ -110,13 +110,13 @@ export class SchemaDeployer {
     return enabledTopicsSchemas
   }
 
-  private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>, topicsSchemaConfig: Record<string, boolean>)
+  private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>)
     : Promise<ISchemasForDeployment> {
     const forCreate = new Map<string, string>(topicSchemasToDeploy)
     const forNewRevision = new Map<string, string>()
     for await (const schema of this.pubSubClient.listSchemas('FULL')) {
       if (schema.type != AVRO) {
-        if (schema.name && topicsSchemaConfig[schema.name]) {
+        if (schema.name?.endsWith('-generated-avro')) {
           throw new Error(`Non avro schema exists for avro topic '${schema.name}', please remove it before starting the service`)
         }
       }

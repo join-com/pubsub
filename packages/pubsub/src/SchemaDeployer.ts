@@ -15,6 +15,10 @@ interface IDeploymentResult {
   revisionsCreated: number
 }
 const AVRO = 'AVRO'
+
+/**
+ * Limit from the GCloud doc: https://cloud.google.com/pubsub/quotas#resource_limits
+ */
 export const MAX_REVISIONS_IN_GCLOUD = 20
 export const SCHEMA_NAME_SUFFIX = '-generated-avro'
 export type ReaderAvroSchema = {

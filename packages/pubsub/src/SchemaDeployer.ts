@@ -3,7 +3,7 @@ import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
 
 interface ISchemasForDeployment {
-  forCreate: Map<string, string>,
+  forCreate: Map<string, string>
   forNewRevision: Map<string, string>
 }
 interface ISchemaWithEvent {
@@ -11,11 +11,15 @@ interface ISchemaWithEvent {
   fields: unknown
 }
 interface IDeploymentResult {
-  schemasCreated: number,
+  schemasCreated: number
   revisionsCreated: number
 }
 const AVRO = 'AVRO'
 
+/**
+ * Limit from the GCloud doc: https://cloud.google.com/pubsub/quotas#resource_limits
+ */
+export const MAX_REVISIONS_IN_GCLOUD = 20
 export const SCHEMA_NAME_SUFFIX = '-generated-avro'
 export type ReaderAvroSchema = {
   reader: object
@@ -38,7 +42,7 @@ export class SchemaDeployer {
     }
     this.logger.info(`Found ${topicSchemasToDeploy.size} schemas enabled for deployment`)
 
-    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy, topicsSchemaConfig)
+    const { forCreate, forNewRevision } = await this.aggregateTopicSchemas(topicSchemasToDeploy)
     if (forCreate.size === 0 && forNewRevision.size === 0) {
       this.logger.info('Finished deployAvroSchemas, all schemas are already deployed')
       return {schemasCreated: 0, revisionsCreated: 0}
@@ -55,21 +59,42 @@ export class SchemaDeployer {
 
   }
 
-  private async createRevisions(forNewRevision: Map<string, string>) {
+  private async createRevisions(forNewRevision: Map<string, string>): Promise<void> {
     const projectName = process.env['GCLOUD_PROJECT'] as string
     for (const [topicSchema, definition] of forNewRevision) {
       const schemaName = topicSchema + SCHEMA_NAME_SUFFIX
       const schemaPath = `projects/${projectName}/schemas/${schemaName}`
+      await this.cleanOldRevisionsIfLimitReached(schemaPath)
       await this.schemaClient.commitSchema({
         name: schemaPath, schema: {
           name: schemaPath, type: AVRO, definition,
         },
       })
-      this.logger.info(`Schema ${schemaName} is updated`)
     }
   }
 
-  private async createSchemas(forCreate: Map<string, string>) {
+  private async cleanOldRevisionsIfLimitReached(schemaPath: string): Promise<void> {
+    const revisionsResponse = await this.schemaClient.listSchemaRevisions({
+      name: schemaPath,
+      pageSize: MAX_REVISIONS_IN_GCLOUD,
+    })
+    const revisions = revisionsResponse[0]
+    if (revisions.length === MAX_REVISIONS_IN_GCLOUD) {
+      const lastRevision = revisions[revisions.length - 1]
+      if (!lastRevision) {
+        this.logger.warn(`Last revision is undefined, skipping revision deletion logic, schema: ${schemaPath}`)
+        return
+      }
+      if (!lastRevision.name) {
+        this.logger.warn(`Found revision without name, skipping revision deletion logic, schema: ${schemaPath}`)
+        return
+      }
+      this.logger.info(`Reached max number of revisions, deleting revision: ${lastRevision.name}`)
+      await this.schemaClient.deleteSchemaRevision({ name: lastRevision.name })
+    }
+  }
+
+  private async createSchemas(forCreate: Map<string, string>): Promise<void> {
     for (const [topicSchema, definition] of forCreate) {
       const schemaName = topicSchema + SCHEMA_NAME_SUFFIX
       await this.pubSubClient.createSchema(schemaName, AVRO, definition)
@@ -89,13 +114,13 @@ export class SchemaDeployer {
     return enabledTopicsSchemas
   }
 
-  private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>, topicsSchemaConfig: Record<string, boolean>)
+  private async aggregateTopicSchemas(topicSchemasToDeploy: Map<string, string>)
     : Promise<ISchemasForDeployment> {
     const forCreate = new Map<string, string>(topicSchemasToDeploy)
     const forNewRevision = new Map<string, string>()
     for await (const schema of this.pubSubClient.listSchemas('FULL')) {
       if (schema.type != AVRO) {
-        if (schema.name && topicsSchemaConfig[schema.name]) {
+        if (schema.name?.endsWith('-generated-avro')) {
           throw new Error(`Non avro schema exists for avro topic '${schema.name}', please remove it before starting the service`)
         }
       }

@@ -9,7 +9,6 @@ const processApplicationStateReaderSchemaUpdated = {'reader':{'type':'record','n
 
 const processApplicationStateGCloudSchema = {
     type: 'AVRO',
-    name: 'data-company-affiliate-referral-created',
     definition: processApplicationStateStringSchema
 }
 
@@ -19,7 +18,7 @@ const getLoggerMock = () => ({
     error: jest.fn(),
 })
 
-type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ name: string, definition: string }> }
+type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ definition: string }> }
 const getPubsubMock = (asyncIterable: ListSchemaAsyncIteratorMock
                          = undefined as unknown as ListSchemaAsyncIteratorMock) => ({
     listSchemas: jest.fn().mockReturnValue(asyncIterable),
@@ -32,7 +31,7 @@ const getSchemaServiceClientMock = (revisions: unknown[] = []) => ({
     deleteSchemaRevision: jest.fn()
 })
 
-describe('deployAvroSchemas', () => {
+describe('SchemaDeployer.deployAvroSchemas', () => {
     beforeEach(() => {
         process.env['GCLOUD_PROJECT'] = 'project'
     })
@@ -54,7 +53,6 @@ describe('deployAvroSchemas', () => {
     it('throws error when non-avro schema exists with avro name', async () => {
         const nonAvroSchemaWithAvroName = {
             type: 'PROTOCOL_BUFFER',
-            name: 'data-company-affiliate-referral-created',
             definition: 'some'
         }
         const asyncIterable = {
@@ -119,7 +117,6 @@ describe('deployAvroSchemas', () => {
     it('creates schema revision when schema fields don\'t match', async () => {
         const processApplicationStateGCloudSchema = {
             type: 'PROTOBUF',
-            name: 'data-company-affiliate-referral-created',
             definition: processApplicationStateStringSchema
         }
         const asyncIterable = {
@@ -170,10 +167,9 @@ describe('deployAvroSchemas', () => {
         expect(revisionsCreated).toBe(0)
     })
 
-    it('deletes old revision, when max number of revisions exist in the gcloud', async () => {
+    it('deletes old revision, when max number of revisions exist in the gcloud and creates new revision', async () => {
         const processApplicationStateGCloudSchema = {
             type: 'PROTOBUF',
-            name: 'data-company-affiliate-referral-created',
             definition: processApplicationStateStringSchema
         }
         const asyncIterable = {
@@ -206,5 +202,40 @@ describe('deployAvroSchemas', () => {
             },
         })
         expect(schemaServiceClientMock.deleteSchemaRevision).toHaveBeenCalledWith(revisionForDelete)
+    })
+
+    it('doesn\'t delete old revision, when max number of revisions is not reached and creates new revision', async () => {
+        const processApplicationStateGCloudSchema = {
+            type: 'PROTOBUF',
+            definition: processApplicationStateStringSchema
+        }
+        const asyncIterable = {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async *[Symbol.asyncIterator]() {
+                yield processApplicationStateGCloudSchema
+            }
+        }
+        const pubsubMock = getPubsubMock(asyncIterable)
+        const revisions = new Array(MAX_REVISIONS_IN_GCLOUD - 1)
+        const schemaServiceClientMock = getSchemaServiceClientMock(revisions) as unknown as SchemaServiceClient
+        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+          schemaServiceClientMock)
+        const schemasToDeploy = {
+            'data-cmd-process-application-state': true,
+        }
+        const readerSchemas = {'data-cmd-process-application-state': processApplicationStateReaderSchemaUpdated}
+
+        const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)
+
+        expect(schemasCreated).toBe(0)
+        expect(revisionsCreated).toBe(1)
+        const schemaName = 'data-cmd-process-application-state' + SCHEMA_NAME_SUFFIX
+        const schemaPath = `projects/${process.env['GCLOUD_PROJECT'] as string}/schemas/${schemaName}`
+        expect(schemaServiceClientMock.commitSchema).toHaveBeenCalledWith({
+            name: schemaPath, schema: {
+                name: schemaPath, type: 'AVRO', definition: JSON.stringify(processApplicationStateReaderSchemaUpdated.reader),
+            },
+        })
+        expect(schemaServiceClientMock.deleteSchemaRevision).not.toHaveBeenCalled()
     })
 })

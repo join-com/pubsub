@@ -3,7 +3,7 @@ import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
 
 interface ISchemasForDeployment {
-  forCreate: Map<string, string>,
+  forCreate: Map<string, string>
   forNewRevision: Map<string, string>
 }
 interface ISchemaWithEvent {
@@ -11,11 +11,11 @@ interface ISchemaWithEvent {
   fields: unknown
 }
 interface IDeploymentResult {
-  schemasCreated: number,
+  schemasCreated: number
   revisionsCreated: number
 }
 const AVRO = 'AVRO'
-
+export const MAX_REVISIONS_IN_GCLOUD = 20
 export const SCHEMA_NAME_SUFFIX = '-generated-avro'
 export type ReaderAvroSchema = {
   reader: object
@@ -55,21 +55,42 @@ export class SchemaDeployer {
 
   }
 
-  private async createRevisions(forNewRevision: Map<string, string>) {
+  public async createRevisions(forNewRevision: Map<string, string>): Promise<void> {
     const projectName = process.env['GCLOUD_PROJECT'] as string
     for (const [topicSchema, definition] of forNewRevision) {
       const schemaName = topicSchema + SCHEMA_NAME_SUFFIX
       const schemaPath = `projects/${projectName}/schemas/${schemaName}`
+      await this.cleanOldRevisionsIfLimitReached(schemaPath)
       await this.schemaClient.commitSchema({
         name: schemaPath, schema: {
           name: schemaPath, type: AVRO, definition,
         },
       })
-      this.logger.info(`Schema ${schemaName} is updated`)
     }
   }
 
-  private async createSchemas(forCreate: Map<string, string>) {
+  private async cleanOldRevisionsIfLimitReached(schemaPath: string): Promise<void> {
+    const revisionsResponse = await this.schemaClient.listSchemaRevisions({
+      name: schemaPath,
+      pageSize: MAX_REVISIONS_IN_GCLOUD,
+    })
+    const revisions = revisionsResponse[0]
+    if (revisions.length === MAX_REVISIONS_IN_GCLOUD) {
+      const revisions = revisionsResponse[0]
+      const lastRevision = revisions[revisions.length - 1]
+      if (!lastRevision) {
+        return
+      }
+      if (!lastRevision.name) {
+        this.logger.info('Found revision without name')
+        return
+      }
+      this.logger.info(`Reached max number of revisions, deleting revision: ${lastRevision.name}`)
+      await this.schemaClient.deleteSchemaRevision({ name: lastRevision.name })
+    }
+  }
+
+  private async createSchemas(forCreate: Map<string, string>): Promise<void> {
     for (const [topicSchema, definition] of forCreate) {
       const schemaName = topicSchema + SCHEMA_NAME_SUFFIX
       await this.pubSubClient.createSchema(schemaName, AVRO, definition)

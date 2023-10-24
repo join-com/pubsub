@@ -117,7 +117,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
 
     it('creates schema revision when schema fields don\'t match', async () => {
         const processApplicationStateGCloudSchema = {
-            type: 'PROTOBUF',
+            type: 'AVRO',
             definition: processApplicationStateStringSchema
         }
         const asyncIterable = {
@@ -170,7 +170,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
 
     it('deletes old revision, when max number of revisions exist in the gcloud and creates new revision', async () => {
         const processApplicationStateGCloudSchema = {
-            type: 'PROTOBUF',
+            type: 'AVRO',
             definition: processApplicationStateStringSchema
         }
         const asyncIterable = {
@@ -207,7 +207,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
 
     it('doesn\'t delete old revision, when max number of revisions is not reached and creates new revision', async () => {
         const processApplicationStateGCloudSchema = {
-            type: 'PROTOBUF',
+            type: 'AVRO',
             definition: processApplicationStateStringSchema
         }
         const asyncIterable = {

@@ -55,7 +55,7 @@ export class SchemaDeployer {
 
   }
 
-  public async createRevisions(forNewRevision: Map<string, string>): Promise<void> {
+  private async createRevisions(forNewRevision: Map<string, string>): Promise<void> {
     const projectName = process.env['GCLOUD_PROJECT'] as string
     for (const [topicSchema, definition] of forNewRevision) {
       const schemaName = topicSchema + SCHEMA_NAME_SUFFIX
@@ -76,13 +76,13 @@ export class SchemaDeployer {
     })
     const revisions = revisionsResponse[0]
     if (revisions.length === MAX_REVISIONS_IN_GCLOUD) {
-      const revisions = revisionsResponse[0]
       const lastRevision = revisions[revisions.length - 1]
       if (!lastRevision) {
+        this.logger.warn(`Last revision is undefined, skipping revision deletion logic, schema: ${schemaPath}`)
         return
       }
       if (!lastRevision.name) {
-        this.logger.info('Found revision without name')
+        this.logger.warn(`Found revision without name, skipping revision deletion logic, schema: ${schemaPath}`)
         return
       }
       this.logger.info(`Reached max number of revisions, deleting revision: ${lastRevision.name}`)

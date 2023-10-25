@@ -66,8 +66,8 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
         const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
-        const schemasToDeploy = { 'data-company-affiliate-referral-created': true }
-        const readerSchemas = {'data-company-affiliate-referral-created': processApplicationStateReaderSchema}
+        const schemasToDeploy = { 'pubsub-test-event': true }
+        const readerSchemas = {'pubsub-test-event': processApplicationStateReaderSchema}
 
         await expect(schemaDeployer.deployAvroSchemas(schemasToDeploy, readerSchemas)).rejects
           .toThrow('Non avro schema exists for avro topic \'event-generated-avro\', please remove it before starting the service')

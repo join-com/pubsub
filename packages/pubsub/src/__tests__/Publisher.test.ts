@@ -85,7 +85,7 @@ describe('Publisher', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = Buffer.from(type.toString(message))
     const metadata = {
-      join_event: 'data-company-affiliate-referral-created',
+      join_event: 'pubsub-test-event',
       join_generator_version: '1.0.0',
       join_generator_git_remote_origin_url: 'git@github.com:join-com/avro-join.git',
       join_schema_type: 'WRITER',

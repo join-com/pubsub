@@ -52,7 +52,7 @@ export const SCHEMA_DEFINITION_EXAMPLE = {
       'default': null,
     }
   ],
-  'Event' : 'data-company-affiliate-referral-created',
+  'Event' : 'pubsub-test-event',
   'GeneratorVersion' : '1.0.0',
   'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
   'SchemaType' : 'WRITER',
@@ -104,7 +104,7 @@ export const SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE = {
       'default' : null
     },
   ],
-  'Event' : 'data-company-affiliate-referral-created',
+  'Event' : 'pubsub-test-event',
   'GeneratorVersion' : '1.0.0',
   'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
   'SchemaType' : 'WRITER',

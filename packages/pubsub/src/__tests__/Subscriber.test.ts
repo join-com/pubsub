@@ -370,6 +370,28 @@ describe('Subscriber', () => {
       expect(parsedMessage?.dataParsed).toEqual(avroDataPreserveNullMessageFromAvro)
     })
 
+    it('processes avro encoded data without assigned schema from gcloud', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaClientMock.listSchemaRevisions.mockResolvedValue([[{revisionId: 'revision', definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}]])
+
+      await subscriber.initialize()
+
+      messageMock.data = Buffer.from(type.toString(avroData))
+      messageMock.attributes = {'join_avdl_schema_version': 'example'}
+
+      let parsedMessage: IParsedMessage<unknown> | undefined
+      subscriber.start(msg => {
+        parsedMessage = msg
+        return Promise.resolve()
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
+      expect(parsedMessage?.dataParsed).toEqual(avroData)
+    })
+
     it('unacknowledges message if processing fails', async () => {
       subscriber.start(() => Promise.reject('Something wrong'))
 

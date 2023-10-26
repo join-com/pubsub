@@ -139,7 +139,14 @@ export class Subscriber<T = unknown> {
 
   private async parseData(message: Message): Promise<T> {
     let dataParsed: T
-    const schemaId = message.attributes['googclient_schemarevisionid']
+    let schemaId = message.attributes['googclient_schemarevisionid']
+
+    // TODO: fix for the first couple of messages, that don't have "googclient_schemarevisionid" after the schema is assigned
+    // Ticket for Google Cloud will be created
+    if (!schemaId && message.attributes['join_avdl_schema_version']) {
+      schemaId = await this.schemaCache.getLatestSchemaRevisionId()
+    }
+
     // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
     if (schemaId) {
       dataParsed = await this.parseAvroMessage(message, schemaId)

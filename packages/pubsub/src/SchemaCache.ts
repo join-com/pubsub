@@ -32,4 +32,32 @@ export class SchemaCache {
 
     return type
   }
+
+  public async getLatestSchemaRevisionId(): Promise<string> {
+    const projectName = process.env['GCLOUD_PROJECT']
+    if (!projectName) {
+      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+    }
+    const schemaPath = `projects/${projectName}/schemas/${this.topicSchemaName}`
+
+    const revisionsResponse = await this.schemaServiceClient.listSchemaRevisions({
+      name: schemaPath,
+      pageSize: 1,
+    })
+    if (revisionsResponse[0].length == 0 || !revisionsResponse[0][0]) {
+      throw Error(`Can'\t find any schemas for the topic ${schemaPath}`)
+    }
+    const remoteSchema = revisionsResponse[0][0]
+    const schemaRevisionId = remoteSchema.revisionId
+    if (!schemaRevisionId) {
+      throw new Error(`Can't process schema ${schemaPath} without revisionId`)
+    }
+    if (!remoteSchema.definition) {
+      throw new Error(`Can't process schema ${schemaPath}/${schemaRevisionId} without definition`)
+    }
+    const schema = JSON.parse(remoteSchema.definition) as Schema
+    this.topicTypeRevisionsCache[schemaRevisionId] = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
+
+    return schemaRevisionId
+  }
 }

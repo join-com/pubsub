@@ -176,7 +176,8 @@ export const schemaMock = {
 }
 
 export const schemaServiceClientMock = {
-  getSchema: jest.fn()
+  getSchema: jest.fn(),
+  listSchemaRevisions: jest.fn()
 }
 
 export interface IClientMockOption {

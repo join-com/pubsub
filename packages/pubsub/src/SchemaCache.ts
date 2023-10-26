@@ -1,7 +1,6 @@
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { DateType } from './logical-types/DateType'
-import { MAX_REVISIONS_IN_GCLOUD } from './SchemaDeployer'
 
 export class SchemaCache {
 
@@ -43,7 +42,7 @@ export class SchemaCache {
 
     const revisionsResponse = await this.schemaServiceClient.listSchemaRevisions({
       name: schemaPath,
-      pageSize: MAX_REVISIONS_IN_GCLOUD,
+      pageSize: 1,
     })
     if (revisionsResponse[0].length == 0 || !revisionsResponse[0][0]) {
       throw Error(`Can'\t find any schemas for the topic ${schemaPath}`)

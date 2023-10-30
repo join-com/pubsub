@@ -1,6 +1,8 @@
+import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { DateType } from './logical-types/DateType'
+import SchemaView = google.pubsub.v1.SchemaView
 
 export class SchemaCache {
 
@@ -43,6 +45,7 @@ export class SchemaCache {
     const revisionsResponse = await this.schemaServiceClient.listSchemaRevisions({
       name: schemaPath,
       pageSize: 1,
+      view: SchemaView.FULL
     })
     if (revisionsResponse[0].length == 0 || !revisionsResponse[0][0]) {
       throw Error(`Can'\t find any schemas for the topic ${schemaPath}`)

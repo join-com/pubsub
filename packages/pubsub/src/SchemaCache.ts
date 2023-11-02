@@ -1,6 +1,7 @@
 import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
+import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 import SchemaView = google.pubsub.v1.SchemaView
 
@@ -10,7 +11,8 @@ export class SchemaCache {
 
   constructor(
     private readonly schemaServiceClient: SchemaServiceClient,
-    private readonly topicSchemaName: string
+    private readonly topicSchemaName: string,
+    private readonly logger?: ILogger,
   ) { }
 
   public async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
@@ -23,7 +25,19 @@ export class SchemaCache {
       throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
     }
     const revisionPath = `projects/${projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
-    const [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
+    let remoteSchema
+    try {
+      [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
+    } catch (error) {
+      this.logger?.warn(`Can't get schema for revision: ${schemaRevisionId}, trying to get the latest one`, error)
+      const latestSchemaId = await this.getLatestSchemaRevisionId()
+      const type = this.topicTypeRevisionsCache[latestSchemaId]
+      if (type) {
+        return type
+      } else {
+        throw error
+      }
+    }
 
     if (!remoteSchema.definition) {
       throw new Error(`Can't process schema ${schemaRevisionId} without definition`)

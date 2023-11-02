@@ -392,6 +392,29 @@ describe('Subscriber', () => {
       expect(parsedMessage?.dataParsed).toEqual(avroData)
     })
 
+    it('processes avro encoded data with latest schema when schema from message can not be found', async () => {
+        topicMock.exists.mockResolvedValue([true])
+        subscriptionMock.exists.mockResolvedValue([true])
+        topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+
+        schemaClientMock.getSchema.mockRejectedValue(new Error('Can\'t get schema by revision id'))
+        schemaClientMock.listSchemaRevisions.mockResolvedValue([[{revisionId: 'revision', definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}]])
+        await subscriber.initialize()
+
+        messageMock.data = Buffer.from(type.toString(avroData))
+        messageMock.attributes = {'googclient_schemarevisionid': 'example'}
+
+        let parsedMessage: IParsedMessage<unknown> | undefined
+        subscriber.start(msg => {
+          parsedMessage = msg
+          return Promise.resolve()
+        })
+
+      await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
+      expect(parsedMessage?.dataParsed).toEqual(avroData)
+    })
+
     it('unacknowledges message if processing fails', async () => {
       subscriber.start(() => Promise.reject('Something wrong'))
 

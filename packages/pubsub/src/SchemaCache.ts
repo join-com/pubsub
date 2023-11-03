@@ -29,11 +29,15 @@ export class SchemaCache {
     try {
       [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
     } catch (error) {
-      this.logger?.warn(`Can't get schema for revision: ${schemaRevisionId}, trying to get the latest one`, error)
-      const latestSchemaId = await this.getLatestSchemaRevisionId()
-      const type = this.topicTypeRevisionsCache[latestSchemaId]
-      if (type) {
-        return type
+      if (error instanceof Error && error.message.includes('NOT_FOUND')) {
+        this.logger?.warn(`Can't get schema for revision: ${schemaRevisionId}, trying to get the latest one`, error)
+        const latestSchemaId = await this.getLatestSchemaRevisionId()
+        const type = this.topicTypeRevisionsCache[latestSchemaId]
+        if (type) {
+          return type
+        } else {
+          throw error
+        }
       } else {
         throw error
       }

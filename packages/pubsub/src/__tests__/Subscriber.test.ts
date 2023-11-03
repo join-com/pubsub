@@ -397,7 +397,7 @@ describe('Subscriber', () => {
         subscriptionMock.exists.mockResolvedValue([true])
         topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
 
-        schemaClientMock.getSchema.mockRejectedValue(new Error('Can\'t get schema by revision id'))
+        schemaClientMock.getSchema.mockRejectedValue(new Error('NOT_FOUND'))
         schemaClientMock.listSchemaRevisions.mockResolvedValue([[{revisionId: 'revision', definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}]])
         await subscriber.initialize()
 

@@ -84,7 +84,7 @@ export class Subscriber<T = unknown> {
 
     this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
-    this.schemaCache = new SchemaCache(this.schemaServiceClient, this.topicSchemaName)
+    this.schemaCache = new SchemaCache(this.schemaServiceClient, this.topicSchemaName, this.logger)
 
     if (this.isDeadLetterPolicyEnabled()) {
       this.deadLetterTopicName = `${subscriptionName}-unack`

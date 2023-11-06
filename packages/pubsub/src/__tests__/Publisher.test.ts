@@ -2,13 +2,16 @@ import { PubSub } from '@google-cloud/pubsub'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
 import { DateType } from '../logical-types/DateType'
-import { Publisher } from '../Publisher'
+import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS, Publisher } from '../Publisher'
+import {
+  SCHEMA_DEFINITION_EXAMPLE, SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE,
+  SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE,
+  SCHEMA_EXAMPLE,
+} from './support/constants'
 import {
   ConsoleLogger,
   getClientMock,
   getTopicMock, IMessageType,
-  SCHEMA_DEFINITION_EXAMPLE,
-  SCHEMA_EXAMPLE,
   schemaMock,
 } from './support/pubsubMock'
 
@@ -19,6 +22,11 @@ const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const processAbortSpy = jest.spyOn(process, 'abort')
 const schemas = {writer: SCHEMA_DEFINITION_EXAMPLE, reader: SCHEMA_DEFINITION_EXAMPLE}
+const schemasWithArrays = {writer: SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE,
+  reader: SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE}
+const readerTypeWithArrays = Type.forSchema(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE as Schema,
+  {logicalTypes: {'timestamp-micros': DateType}})
+
 
 const DATE_WITH_UNSAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('3000-01-01T00:00:00.000Z')
 const MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('2255-06-05T23:47:34.740Z')
@@ -84,7 +92,7 @@ describe('Publisher', () => {
   describe('publishMsg on topic with schema', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
     const avroMessage = Buffer.from(type.toString(message))
-    const metadata = {
+    const metadata: Record<string, string> = {
       join_event: 'pubsub-test-event',
       join_generator_version: '1.0.0',
       join_generator_git_remote_origin_url: 'git@github.com:join-com/avro-join.git',
@@ -145,6 +153,48 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
       const decodedMessage = type.fromString(avroMessage.toString()) as IMessageType
       expect(decodedMessage.createdAt).toEqual(MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS)
+    })
+
+    it('publishes avro encoded messages with undefined array field in metadata', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+      const message = { first: 'one', tags: ['tag'] }
+
+      await publisher.publishMsg(message)
+
+      const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
+      const messageMetadata = { ...metadata }
+      messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'languages'
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+    })
+
+    it('publishes avro encoded messages one with two undefined array field in metadata', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+      const message = { first: 'one' }
+
+      await publisher.publishMsg(message)
+      const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
+      const messageMetadata = { ...metadata }
+      messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'tags,languages'
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+    })
+
+    it('publishes avro encoded messages one without undefined array field when all arrays are set', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+      const message = { first: 'one', tags: ['tag'], languages: ['en'] }
+
+      await publisher.publishMsg(message)
+
+      const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
     })
   })
 

@@ -431,8 +431,9 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      const message = { first: 'one', tags: ['tag'] }
-      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(message))
+      const publishedMessage = { first: 'one', tags: ['tag'] }
+      const receivedMessage = { first: 'one', tags: ['tag'], languages: [] }
+      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
       messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages' }
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -442,7 +443,7 @@ describe('Subscriber', () => {
 
       await subscriptionMock.receiveMessage(messageMock)
       await flushPromises()
-      expect(parsedMessage?.dataParsed).toEqual(message)
+      expect(parsedMessage?.dataParsed).toEqual(publishedMessage)
     })
 
     it('receives avro parsed data and replaces 2 empty array with undefined using path from metadata', async () => {
@@ -453,8 +454,9 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      const message = { first: 'one'}
-      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(message))
+      const publishedMessage = { first: 'one'}
+      const receivedMessage = { first: 'one', tags: [], languages: []}
+      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
       messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages,tags'}
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -464,7 +466,7 @@ describe('Subscriber', () => {
 
       await subscriptionMock.receiveMessage(messageMock)
       await flushPromises()
-      expect(parsedMessage?.dataParsed).toEqual(message)
+      expect(parsedMessage?.dataParsed).toEqual(publishedMessage)
     })
 
     it('unacknowledges message if processing fails', async () => {

@@ -170,7 +170,7 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
     })
 
-    it('publishes avro encoded messages one with two undefined array field in metadata', async () => {
+    it('publishes avro encoded messages with two undefined array field in metadata', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
@@ -184,7 +184,7 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
     })
 
-    it('publishes avro encoded messages one without undefined array field when all arrays are set', async () => {
+    it('publishes avro encoded messages without undefined array field when all arrays are set', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])

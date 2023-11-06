@@ -22,7 +22,7 @@ export class AvroParser {
     if (type instanceof types.UnwrappedUnionType) {
       const typeAfterNull = type.types[1]
       if (!typeAfterNull) {
-        throw Error('Second type should be always a real type, as union used only for optional values')
+        throw Error('Second type should be always a non-null type, as union used only for optional values')
       }
       type = typeAfterNull
       optional = true

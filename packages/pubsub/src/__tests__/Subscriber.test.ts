@@ -5,6 +5,11 @@ import { createCallOptions } from '../createCallOptions'
 import { DateType } from '../logical-types/DateType'
 import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
 import {
+  SCHEMA_DEFINITION_EXAMPLE,
+  SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE,
+  SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE,
+} from './support/constants'
+import {
   ConsoleLogger,
   getClientMock,
   getIamMock,
@@ -12,7 +17,7 @@ import {
   getSubscriptionMock,
   getTopicMock,
   IMessageMock,
-  SCHEMA_DEFINITION_EXAMPLE, SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE, schemaServiceClientMock,
+  schemaServiceClientMock,
 } from './support/pubsubMock'
 
 const topicName = 'topic-name'
@@ -25,8 +30,11 @@ const topicMock = getTopicMock({ subscriptionMock, iamMock: iamTopicMock })
 const clientMock = getClientMock({ topicMock })
 const schemaClientMock = schemaServiceClientMock
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
+const readerTypeWithArrays = Type.forSchema(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE as Schema,
+  {logicalTypes: {'timestamp-micros': DateType}})
 const typeWithPreserveNull = Type.forSchema(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
-const flushPromises = () => new Promise(setImmediate);
+const flushPromises = () => new Promise(setImmediate)
+
 
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
@@ -413,6 +421,52 @@ describe('Subscriber', () => {
       await subscriptionMock.receiveMessage(messageMock)
       await flushPromises()
       expect(parsedMessage?.dataParsed).toEqual(avroData)
+    })
+
+    it('receives avro parsed data and replaces empty array with undefined using path from metadata', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE)}])
+
+      await subscriber.initialize()
+
+      const publishedMessage = { first: 'one', tags: ['tag'] }
+      const receivedMessage = { first: 'one', tags: ['tag'], languages: [] }
+      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
+      messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages' }
+      let parsedMessage: IParsedMessage<unknown> | undefined
+      subscriber.start(msg => {
+        parsedMessage = msg
+        return Promise.resolve()
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
+      expect(parsedMessage?.dataParsed).toEqual(publishedMessage)
+    })
+
+    it('receives avro parsed data and replaces 2 empty array with undefined using path from metadata', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
+      schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE)}])
+
+      await subscriber.initialize()
+
+      const publishedMessage = { first: 'one'}
+      const receivedMessage = { first: 'one', tags: [], languages: []}
+      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
+      messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages,tags'}
+      let parsedMessage: IParsedMessage<unknown> | undefined
+      subscriber.start(msg => {
+        parsedMessage = msg
+        return Promise.resolve()
+      })
+
+      await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
+      expect(parsedMessage?.dataParsed).toEqual(publishedMessage)
     })
 
     it('unacknowledges message if processing fails', async () => {

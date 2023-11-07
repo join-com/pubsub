@@ -3,7 +3,9 @@ import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
+import { FieldsProcessor } from './FieldsProcessor'
 import { ILogger } from './ILogger'
+import { JOIN_PRESERVE_NULL, JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from './Publisher'
 import { SchemaCache } from './SchemaCache'
 import { replaceNullsWithUndefined } from './util'
 
@@ -69,6 +71,7 @@ export class Subscriber<T = unknown> {
   private readonly deadLetterSubscription?: Subscription
 
   private readonly schemaCache: SchemaCache
+  private readonly fieldsProcessor: FieldsProcessor
 
   constructor(
     private readonly subscriberOptions: ISubscriberOptions,
@@ -85,6 +88,7 @@ export class Subscriber<T = unknown> {
     this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
     this.schemaCache = new SchemaCache(this.schemaServiceClient, this.topicSchemaName, this.logger)
+    this.fieldsProcessor = new FieldsProcessor()
 
     if (this.isDeadLetterPolicyEnabled()) {
       this.deadLetterTopicName = `${subscriptionName}-unack`
@@ -150,7 +154,11 @@ export class Subscriber<T = unknown> {
     // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
     if (schemaId) {
       dataParsed = await this.parseAvroMessage(message, schemaId)
-      replaceNullsWithUndefined(dataParsed, message.attributes['join_preserve_null'])
+      const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
+      if (undefinedOrNullOptionalArrays) {
+        this.fieldsProcessor.setEmptyArrayFieldsToUndefined(dataParsed as Record<string, unknown>, undefinedOrNullOptionalArrays.split(','))
+      }
+      replaceNullsWithUndefined(dataParsed, message.attributes[JOIN_PRESERVE_NULL])
     } else {
       const dataParser = new DataParser()
       dataParsed = dataParser.parse(message.data) as T

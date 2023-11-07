@@ -3,7 +3,9 @@ import { PubSub, Topic } from '@google-cloud/pubsub'
 import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
 import { Schema, Type } from 'avsc'
+import { AvroParser } from './AvroParser'
 import { createCallOptions } from './createCallOptions'
+import { FieldsProcessor } from './FieldsProcessor'
 import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 import { logWarnWhenUndefinedInNullPreserveFields } from './util'
@@ -21,6 +23,8 @@ interface IMessageMetadata {
 }
 
 type SchemaWithMetadata = Schema & IMessageMetadata
+export const JOIN_PRESERVE_NULL = 'join_preserve_null'
+export const JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS = 'join_undefined_or_null_optional_arrays'
 
 export class Publisher<T = unknown> {
   private readonly topic: Topic
@@ -28,8 +32,11 @@ export class Publisher<T = unknown> {
 
   private readonly writerAvroType?: Type
   private readonly readerAvroType?: Type
+  private readonly optionArrayPaths?: string[]
 
   private readonly avroMessageMetadata?: Record<string, string>
+  private readonly avroParser = new AvroParser()
+  private readonly fieldsProcessor = new FieldsProcessor()
   //TODO: remove flags below, when only avro will be used
   private topicHasAssignedSchema = false
   private avroSchemasProvided = false
@@ -41,6 +48,7 @@ export class Publisher<T = unknown> {
       this.avroSchemasProvided = true
       const writerAvroSchema: SchemaWithMetadata = avroSchemas.writer as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+      this.optionArrayPaths = this.avroParser.getOptionalArrayPaths(this.writerAvroType)
 
       const readerAvroSchema: SchemaWithMetadata = avroSchemas.reader as SchemaWithMetadata
       this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
@@ -49,6 +57,8 @@ export class Publisher<T = unknown> {
     }
     this.topic = client.topic(topicName)
     this.topicSchemaName = `${this.topicName}-generated-avro`
+    this.avroParser = new AvroParser()
+    this.fieldsProcessor = new FieldsProcessor()
   }
 
   public async initialize() {
@@ -86,7 +96,7 @@ export class Publisher<T = unknown> {
 
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
-      const invalidPaths: string[] = [];
+      const invalidPaths: string[] = []
       if (!this.writerAvroType.isValid(data, {errorHook: path => invalidPaths.push(path.join('.'))} )) {
         this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata, invalidPaths })
       }
@@ -158,22 +168,33 @@ export class Publisher<T = unknown> {
   }
 
   private async sendAvroMessage(data: T): Promise<void> {
+    let currentMessageMetadata = this.avroMessageMetadata
+    if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
+      const undefinedOrNullOptionalArrays = this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
+      if (undefinedOrNullOptionalArrays.length > 0) {
+        currentMessageMetadata = { ...currentMessageMetadata }
+        currentMessageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = undefinedOrNullOptionalArrays.join(',')
+      }
+    }
     // TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
     // for now we are checking that avro is enabled before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (!this.writerAvroType!.isValid(data)) {
       this.logger?.error(`[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct ' +
-        'and payload can be encoded with it`, {payload: data, schemaMetadata: this.avroMessageMetadata})
+        'and payload can be encoded with it`, {payload: data, schemaMetadata: currentMessageMetadata})
       throw new Error(`[${this.topicName}] Can't encode the avro message for the topic`)
     }
-    if (this.avroMessageMetadata && this.avroMessageMetadata['join_preserve_null']) {
-      logWarnWhenUndefinedInNullPreserveFields(data, this.avroMessageMetadata['join_preserve_null'], this.logger)
+    if (currentMessageMetadata && currentMessageMetadata[JOIN_PRESERVE_NULL]) {
+      logWarnWhenUndefinedInNullPreserveFields(data, currentMessageMetadata[JOIN_PRESERVE_NULL], this.logger)
     }
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const buffer = Buffer.from(this.readerAvroType!.toString(data))
-    const messageId = await this.topic.publishMessage({ data: buffer, attributes: this.avroMessageMetadata })
+    const messageId = await this.topic.publishMessage({ data: buffer, attributes: currentMessageMetadata })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
   }
+
+
 
   private async sendJsonMessage(message: MessageOptions) {
     const messageId = await this.topic.publishMessage(message)
@@ -192,7 +213,7 @@ export class Publisher<T = unknown> {
     metadata['join_avdl_schema_version'] = schema.AvdlSchemaVersion
     metadata['join_pubsub_lib_version'] = this.getLibraryVersion()
     if (schema.PreserveNull) {
-      metadata['join_preserve_null'] = schema.PreserveNull
+      metadata[JOIN_PRESERVE_NULL] = schema.PreserveNull
     }
 
     return metadata

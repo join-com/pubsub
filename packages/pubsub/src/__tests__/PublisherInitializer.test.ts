@@ -1,6 +1,7 @@
 import { Publisher } from '../Publisher'
 import { PublisherInitializer } from '../PublisherInitializer'
-import { ConsoleLogger, SCHEMA_DEFINITION_EXAMPLE } from './support/pubsubMock'
+import { SCHEMA_DEFINITION_EXAMPLE } from './support/constants'
+import { ConsoleLogger } from './support/pubsubMock'
 
 const publisherSpy = jest.spyOn(Publisher.prototype, 'initialize')
 

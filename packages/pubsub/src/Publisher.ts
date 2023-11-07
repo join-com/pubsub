@@ -170,7 +170,7 @@ export class Publisher<T = unknown> {
   private async sendAvroMessage(data: T): Promise<void> {
     let currentMessageMetadata = this.avroMessageMetadata
     if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
-      const undefinedOrNullOptionalArrays = this.fieldsProcessor.findUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
+      const undefinedOrNullOptionalArrays = this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
       if (undefinedOrNullOptionalArrays.length > 0) {
         currentMessageMetadata = { ...currentMessageMetadata }
         currentMessageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = undefinedOrNullOptionalArrays.join(',')

@@ -1,10 +1,36 @@
 export class FieldsProcessor {
-  public findUndefinedOrNullOptionalArrays(obj: Record<string, unknown>, paths: string[]): string[] {
+  public findAndReplaceUndefinedOrNullOptionalArrays(obj: Record<string, unknown>, paths: string[]): string[] {
     const result: string[] = []
     for (const path of paths) {
-      this.findUndefinedOrNullOptionalArraysRecursive(obj, path, path.split('.'), 0, result)
+      this.findAndReplaceUndefinedOrNullOptionalArraysRecursive(obj, path, path.split('.'), 0, result)
     }
     return result
+  }
+
+  private findAndReplaceUndefinedOrNullOptionalArraysRecursive(obj: Record<string, unknown>, path: string, splitPath: string[],
+                                                     fieldNumber: number, result: string[]) {
+    if (!obj) {
+      return
+    }
+    const key = splitPath[fieldNumber] as keyof typeof obj
+    if (splitPath.length === fieldNumber + 1) {
+      // undefined or null array found, add it to results
+      if (!(obj[key])) {
+        result.push(path)
+        obj[key] = []
+      }
+      return
+    }
+    const nextLevelObj = obj[key]
+    if (nextLevelObj) {
+      if (!Array.isArray(nextLevelObj)) {
+        this.findAndReplaceUndefinedOrNullOptionalArraysRecursive(nextLevelObj as Record<string, unknown>, path, splitPath, fieldNumber + 1, result)
+      } else {
+        for (const nextLevelObjectItem of nextLevelObj) {
+          this.findAndReplaceUndefinedOrNullOptionalArraysRecursive(nextLevelObjectItem as Record<string, unknown>, path, splitPath, fieldNumber + 1, result)
+        }
+      }
+    }
   }
 
   public setEmptyArrayFieldsToUndefined(obj: Record<string, unknown>, paths: string[]) {
@@ -33,31 +59,6 @@ export class FieldsProcessor {
       } else {
         for (const nextLevelObjectItem of nextLevelObj) {
           this.setEmptyArrayFieldsToUndefinedRecursive(nextLevelObjectItem as Record<string, unknown>, splitPath, fieldNumber + 1)
-        }
-      }
-    }
-  }
-
-  private findUndefinedOrNullOptionalArraysRecursive(obj: Record<string, unknown>, path: string, splitPath: string[],
-                                            fieldNumber: number, result: string[]) {
-    if (!obj) {
-      return
-    }
-    const key = splitPath[fieldNumber] as keyof typeof obj
-    if (splitPath.length === fieldNumber + 1) {
-      // undefined or null array found, add it to results
-      if (!(obj[key])) {
-        result.push(path)
-      }
-      return
-    }
-    const nextLevelObj = obj[key]
-    if (nextLevelObj) {
-      if (!Array.isArray(nextLevelObj)) {
-        this.findUndefinedOrNullOptionalArraysRecursive(nextLevelObj as Record<string, unknown>, path, splitPath, fieldNumber + 1, result)
-      } else {
-        for (const nextLevelObjectItem of nextLevelObj) {
-          this.findUndefinedOrNullOptionalArraysRecursive(nextLevelObjectItem as Record<string, unknown>, path, splitPath, fieldNumber + 1, result)
         }
       }
     }

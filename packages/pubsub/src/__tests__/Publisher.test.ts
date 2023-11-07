@@ -170,6 +170,21 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
     })
 
+    it('publishes avro encoded messages with undefined array field in metadata when array is null', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+      const message = { first: 'one', tags: ['tag'], languages: null }
+
+      await publisher.publishMsg(message)
+
+      const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
+      const messageMetadata = { ...metadata }
+      messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'languages'
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+    })
+
     it('publishes avro encoded messages with two undefined array field in metadata', async () => {
       publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])

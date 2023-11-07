@@ -4,24 +4,26 @@ import { FieldsProcessor } from '../FieldsProcessor'
 describe('FieldsProcessor', () => {
   const fieldsProcessor = new FieldsProcessor()
 
-  describe('findUndefinedOrNullOptionalArrays', () => {
-    it('finds undefined array on the first level', () => {
+  describe('findAndReplaceUndefinedOrNullOptionalArrays', () => {
+    it('finds and replaces undefined array on the first level', () => {
       const data = {
         'array': undefined
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['array'])
 
+      expect(data.array).toBeEmpty()
       expect(optionalArrays).toEqual(['array'])
     })
 
-    it('finds null array on the first level', () => {
+    it('finds and replaces null array on the first level', () => {
       const data = {
         'array': null
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['array'])
 
+      expect(data.array).toBeEmpty()
       expect(optionalArrays).toEqual(['array'])
     })
 
@@ -30,31 +32,35 @@ describe('FieldsProcessor', () => {
         'array': []
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['array'])
 
       expect(optionalArrays).toEqual([])
     })
 
-    it('finds undefined array on the second level', () => {
+    it('finds and replaces undefined array on the second level', () => {
       const data = {
         entity: {
           'array': undefined
         }
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['entity.array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['entity.array'])
 
+      expect(data.entity.array).toBeEmpty()
       expect(optionalArrays).toEqual(['entity.array'])
     })
 
-    it('finds undefined array on the second level inside arrays', () => {
+    it('finds and replaces undefined array on the second level inside arrays', () => {
       const data = {
         entities: [{
           'array': undefined
         }]
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['entities.array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['entities.array'])
+
+      expect(data.entities[0]).toBeDefined()
+      expect(data.entities[0]?.array).toBeEmpty()
 
       expect(optionalArrays).toEqual(['entities.array'])
     })
@@ -62,17 +68,19 @@ describe('FieldsProcessor', () => {
     it('ignores undefined paths on the first two levels', () => {
       const data = {
         entities: [{
-          'array': undefined
+          'array': null
         }]
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['entities.array',
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['entities.array',
         'entities.nonexistent.array', 'nonexistent.array'])
 
+      expect(data.entities[0]).toBeDefined()
+      expect(data.entities[0]?.array).toBeEmpty()
       expect(optionalArrays).toEqual(['entities.array'])
     })
 
-    it('finds undefined array on the third level', () => {
+    it('finds and replaces undefined array on the third level', () => {
       const data = {
         'topLevel': {
           entity: {
@@ -81,8 +89,9 @@ describe('FieldsProcessor', () => {
         }
       }
 
-      const optionalArrays = fieldsProcessor.findUndefinedOrNullOptionalArrays(data, ['topLevel.entity.array'])
+      const optionalArrays = fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data, ['topLevel.entity.array'])
 
+      expect(data.topLevel.entity.array).toBeEmpty()
       expect(optionalArrays).toEqual(['topLevel.entity.array'])
     })
   })

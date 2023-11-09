@@ -3,7 +3,6 @@ import { PubSub, Topic } from '@google-cloud/pubsub'
 import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
 import { Schema, Type } from 'avsc'
-import { AvroParser } from './AvroParser'
 import { createCallOptions } from './createCallOptions'
 import { FieldsProcessor } from './FieldsProcessor'
 import { ILogger } from './ILogger'
@@ -20,6 +19,7 @@ interface IMessageMetadata {
   AvdlSchemaGitRemoteOriginUrl: string,
   AvdlSchemaVersion: string,
   PreserveNull?: string
+  OptionalArrayPaths?: string
 }
 
 type SchemaWithMetadata = Schema & IMessageMetadata
@@ -35,7 +35,6 @@ export class Publisher<T = unknown> {
   private readonly optionArrayPaths?: string[]
 
   private readonly avroMessageMetadata?: Record<string, string>
-  private readonly avroParser = new AvroParser()
   private readonly fieldsProcessor = new FieldsProcessor()
   //TODO: remove flags below, when only avro will be used
   private topicHasAssignedSchema = false
@@ -48,8 +47,9 @@ export class Publisher<T = unknown> {
       this.avroSchemasProvided = true
       const writerAvroSchema: SchemaWithMetadata = avroSchemas.writer as SchemaWithMetadata
       this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
-      this.optionArrayPaths = this.avroParser.getOptionalArrayPaths(this.writerAvroType)
-
+      if (writerAvroSchema.OptionalArrayPaths) {
+        this.optionArrayPaths = writerAvroSchema.OptionalArrayPaths.split(',')
+      }
       const readerAvroSchema: SchemaWithMetadata = avroSchemas.reader as SchemaWithMetadata
       this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
 
@@ -57,8 +57,6 @@ export class Publisher<T = unknown> {
     }
     this.topic = client.topic(topicName)
     this.topicSchemaName = `${this.topicName}-generated-avro`
-    this.avroParser = new AvroParser()
-    this.fieldsProcessor = new FieldsProcessor()
   }
 
   public async initialize() {

@@ -173,6 +173,7 @@ export const SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE = {
   'GeneratorVersion' : '1.0.0',
   'GeneratorGitRemoteOriginUrl' : 'git@github.com:join-com/avro-join.git',
   'SchemaType' : 'WRITER',
+  'OptionalArrayPaths' : 'tags,languages',
   'AvdlSchemaGitRemoteOriginUrl' : 'git@github.com:join-com/data.git',
   'AvdlSchemaPathInGitRepo' : 'src/test/resources/input.avdl',
   'AvdlSchemaVersion': 'commit-hash'

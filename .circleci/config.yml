@@ -8,6 +8,8 @@ docker-auth: &docker-auth
 defaults: &defaults
   working_directory: ~/pubsub
   resource_class: small
+  environment:
+    NODE_OPTIONS: '--max_old_space_size=1536'
   docker:
     - image: cimg/node:16.14.1
       <<: *docker-auth

@@ -1,30 +1,40 @@
 import { google } from '@google-cloud/pubsub/build/protos/protos'
-import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { ILogger } from './ILogger'
 import { DateType } from './logical-types/DateType'
 import SchemaView = google.pubsub.v1.SchemaView
 
+const UNACK_SUFFIX = '-unack'
+
 export class SchemaCache {
 
   private readonly topicTypeRevisionsCache: Record<string, Type> = {}
+  private topicSchemaName: string | undefined
+  private projectName: string
 
   constructor(
     private readonly schemaServiceClient: SchemaServiceClient,
-    private readonly topicSchemaName: string,
-    private readonly logger?: ILogger,
-  ) { }
+    private readonly subscriberClient: SubscriberClient,
+    private readonly topicName: string,
+    private readonly logger?: ILogger
+  ) {
+    this.projectName = process.env['GCLOUD_PROJECT'] as string
+    if (!this.projectName) {
+      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+    }
+  }
 
   public async getTypeFromCacheOrRemote(schemaRevisionId: string): Promise<Type> {
+    if (!this.topicSchemaName) {
+      this.topicSchemaName = await this.getTopicSchemaName()
+    }
     const typeFromCache = this.topicTypeRevisionsCache[schemaRevisionId]
     if (typeFromCache) {
       return typeFromCache
     }
-    const projectName = process.env['GCLOUD_PROJECT']
-    if (!projectName) {
-      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
-    }
-    const revisionPath = `projects/${projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
+
+    const revisionPath = `projects/${this.projectName}/schemas/${this.topicSchemaName}@${schemaRevisionId}`
     let remoteSchema
     try {
       [remoteSchema] = await this.schemaServiceClient.getSchema({ name: revisionPath })
@@ -54,12 +64,10 @@ export class SchemaCache {
   }
 
   public async getLatestSchemaRevisionId(): Promise<string> {
-    const projectName = process.env['GCLOUD_PROJECT']
-    if (!projectName) {
-      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+    if (!this.topicSchemaName) {
+      this.topicSchemaName = await this.getTopicSchemaName()
     }
-    const schemaPath = `projects/${projectName}/schemas/${this.topicSchemaName}`
-
+    const schemaPath = `projects/${this.projectName}/schemas/${this.topicSchemaName}`
     const revisionsResponse = await this.schemaServiceClient.listSchemaRevisions({
       name: schemaPath,
       pageSize: 1,
@@ -80,5 +88,22 @@ export class SchemaCache {
     this.topicTypeRevisionsCache[schemaRevisionId] = Type.forSchema(schema, { logicalTypes: { 'timestamp-micros': DateType } })
 
     return schemaRevisionId
+  }
+
+  private async getTopicSchemaName(): Promise<string> {
+    if (!this.topicName.endsWith(UNACK_SUFFIX)) {
+      return `${this.topicName}-generated-avro`
+    }
+    const originalSubscriptionName = this.topicName.substring(0, this.topicName?.lastIndexOf('-unack'))
+    const subscriptionPath = `projects/${this.projectName}/subscriptions/${originalSubscriptionName}`
+
+    const subscriptionResponse = await this.subscriberClient.getSubscription({subscription: subscriptionPath})
+    const originalSubscription = subscriptionResponse[0]
+    if (!originalSubscription.topic) {
+      throw new Error('Can\'t find unacked subscription original topic name')
+    }
+    const topicPathParts = originalSubscription.topic.split('/')
+    const topicName = topicPathParts[topicPathParts.length - 1] as string
+    return `${topicName}-generated-avro`
   }
 }

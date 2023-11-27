@@ -1,5 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
 import { DateType } from '../logical-types/DateType'
@@ -49,9 +49,9 @@ describe('Subscriber', () => {
   let subscriber: Subscriber
 
   beforeEach(() => {
-    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub,
-      schemaClientMock as unknown as SchemaServiceClient, new ConsoleLogger())
     process.env['GCLOUD_PROJECT'] = 'project'
+    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub,
+      schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
   })
 
   afterEach(() => {
@@ -141,7 +141,7 @@ describe('Subscriber', () => {
       subscriptionMock.exists.mockResolvedValue([true])
 
       subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub,
-        schemaClientMock as unknown as SchemaServiceClient)
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient)
 
       await subscriber.initialize()
 
@@ -168,7 +168,8 @@ describe('Subscriber', () => {
       beforeEach(() => {
         subscriber = new Subscriber(
           { topicName, subscriptionName, subscriptionOptions: deadLetterOptions },
-          clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
+          clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient,
+          undefined as unknown as SubscriberClient
         )
       })
 
@@ -215,7 +216,8 @@ describe('Subscriber', () => {
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
             { topicName, subscriptionName, subscriptionOptions: emptyOptions },
-            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
+            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient,
+            undefined as unknown as SubscriberClient
           )
 
           await optionlessSubscriber.initialize()
@@ -272,7 +274,8 @@ describe('Subscriber', () => {
           const emptyOptions = {}
           const optionlessSubscriber = new Subscriber(
             { topicName, subscriptionName, subscriptionOptions: emptyOptions },
-            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient
+            clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient,
+            undefined as unknown as SubscriberClient
           )
 
           await optionlessSubscriber.initialize()

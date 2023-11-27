@@ -33,14 +33,16 @@
   },
   "devDependencies": {
     "@join-private/eslint-config-backend": "^1.3.0",
+    "@side/jest-runtime": "^1.1.0",
+    "@swc/core": "1.3.90",
+    "@swc/jest": "0.2.29",
     "@types/jest": "^29.1.1",
     "@types/node": "^18.8.2",
     "eslint": "^8.24.0",
-    "jest": "^29.1.2",
+    "jest": "^29.7.0",
     "jest-extended": "^3.1.0",
     "jest-watch-typeahead": "^2.2.0",
     "prettier": "^2.7.1",
-    "ts-jest": "^29.0.3",
     "typescript": "^4.8.4"
   },
   "publishConfig": {

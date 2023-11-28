@@ -98,7 +98,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public async initialize() {
+  public async initialize(): Promise<void> {
     try {
       await this.initializeTopic(this.topicName, this.topic)
 
@@ -112,7 +112,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public start(asyncCallback: (msg: IParsedMessage<T>, info : IMessageInfo) => Promise<void>) {
+  public start(asyncCallback: (msg: IParsedMessage<T>, info : IMessageInfo) => Promise<void>): void {
     this.subscription.on('error', this.processError)
     this.subscription.on('message', this.processMsg(asyncCallback))
 

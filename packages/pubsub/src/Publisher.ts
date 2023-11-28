@@ -59,7 +59,7 @@ export class Publisher<T = unknown> {
     this.topicSchemaName = `${this.topicName}-generated-avro`
   }
 
-  public async initialize() {
+  public async initialize(): Promise<void> {
     try {
       await this.initializeTopic()
       await this.initializeTopicSchema()

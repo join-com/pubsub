@@ -1,6 +1,6 @@
 import { ILogger } from './ILogger'
 
-export const replaceNullsWithUndefined = (obj: unknown, preserveNullFields?: string) => {
+export const replaceNullsWithUndefined = (obj: unknown, preserveNullFields?: string): void => {
   if (!preserveNullFields) {
     deepNullToUndefinedInObject(obj)
   } else {
@@ -16,7 +16,7 @@ export const replaceNullsWithUndefined = (obj: unknown, preserveNullFields?: str
   }
 }
 
-export const logWarnWhenUndefinedInNullPreserveFields = (obj: unknown, nullPreserveFields: string, logger?: ILogger) => {
+export const logWarnWhenUndefinedInNullPreserveFields = (obj: unknown, nullPreserveFields: string, logger?: ILogger): void => {
   if (isObject(obj)) {
     const fieldsWithOnlyNullInside = parsePreserveNullFields(nullPreserveFields)
     for (const key of Object.keys(obj)) {
@@ -29,7 +29,7 @@ export const logWarnWhenUndefinedInNullPreserveFields = (obj: unknown, nullPrese
   }
 }
 
-export function includesUndefined(obj: unknown) {
+export function includesUndefined(obj: unknown): boolean {
   if (obj === undefined) {
     return true;
   }

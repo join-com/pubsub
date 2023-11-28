@@ -1,5 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub'
-import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { ILogger } from './ILogger'
 import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions, IMessageInfo } from './Subscriber'
 
@@ -21,6 +21,7 @@ export interface ISubscriber<T> {
 
 export class SubscriberFactory<T> {
   private readonly schemaServiceClient: SchemaServiceClient
+  private readonly subscriberClient: SubscriberClient
   private currentClientConnections: number
   private currentClient: PubSub
 
@@ -28,6 +29,7 @@ export class SubscriberFactory<T> {
     this.currentClient = new PubSub()
     this.currentClientConnections = 0
     this.schemaServiceClient = new SchemaServiceClient()
+    this.subscriberClient = new SubscriberClient()
   }
 
   public getSubscriber<K extends keyof T>(
@@ -50,6 +52,6 @@ export class SubscriberFactory<T> {
       this.logger.info('SubscriberFactory: Reached PubSub client connections limit. Creating new client.')
     }
 
-    return new Subscriber(subscriberOptions, this.currentClient, this.schemaServiceClient, this.logger)
+    return new Subscriber(subscriberOptions, this.currentClient, this.schemaServiceClient, this.subscriberClient, this.logger)
   }
 }

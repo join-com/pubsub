@@ -1,5 +1,5 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
-import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
+import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { DataParser } from './DataParser'
@@ -59,7 +59,6 @@ interface ISubscriptionInitializationOptions {
 export class Subscriber<T = unknown> {
   readonly topicName: string
   readonly subscriptionName: string
-  readonly topicSchemaName: string
 
   private readonly topic: Topic
   private readonly subscription: Subscription
@@ -77,17 +76,17 @@ export class Subscriber<T = unknown> {
     private readonly subscriberOptions: ISubscriberOptions,
     pubSubClient: PubSub,
     private readonly schemaServiceClient: SchemaServiceClient,
+    private readonly subscriberClient: SubscriberClient,
     private readonly logger?: ILogger,
   ) {
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
     this.topicName = topicName
     this.subscriptionName = subscriptionName
-    this.topicSchemaName = `${this.topicName}-generated-avro`
 
     this.topic = pubSubClient.topic(topicName)
     this.subscription = this.topic.subscription(subscriptionName, this.getStartupOptions(subscriptionOptions))
-    this.schemaCache = new SchemaCache(this.schemaServiceClient, this.topicSchemaName, this.logger)
+    this.schemaCache = new SchemaCache(this.schemaServiceClient, this.subscriberClient, this.topicName, this.logger)
     this.fieldsProcessor = new FieldsProcessor()
 
     if (this.isDeadLetterPolicyEnabled()) {

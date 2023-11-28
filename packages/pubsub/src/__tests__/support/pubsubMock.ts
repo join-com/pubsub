@@ -78,6 +78,10 @@ export const schemaServiceClientMock = {
   listSchemaRevisions: jest.fn()
 }
 
+export const subscriberServiceClientMock = {
+  getSubscription: jest.fn()
+}
+
 export interface IClientMockOption {
   topicMock?: ReturnType<typeof getTopicMock>
 }

@@ -33,7 +33,7 @@ export class FieldsProcessor {
     }
   }
 
-  public setEmptyArrayFieldsToUndefined(obj: Record<string, unknown>, paths: string[]) {
+  public setEmptyArrayFieldsToUndefined(obj: Record<string, unknown>, paths: string[]): void {
     for (const path of paths) {
       this.setEmptyArrayFieldsToUndefinedRecursive(obj, path.split('.'), 0)
     }

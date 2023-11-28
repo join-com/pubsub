@@ -6,18 +6,18 @@ export abstract class MessageHandler<T = unknown> {
 
   protected abstract handle(event: T , info: IMessageInfo): Promise<void>
 
-  public start() {
+  public start(): void {
     this.subscriber.start(async (msg:IParsedMessage<T>, info:IMessageInfo) => {
       await this.handle(msg.dataParsed, info)
       msg.ack()
     })
   }
 
-  public async initialize() {
+  public async initialize(): Promise<void> {
     await this.subscriber.initialize()
   }
 
-  public async stop() {
+  public async stop(): Promise<void> {
     await this.subscriber.stop()
   }
 }

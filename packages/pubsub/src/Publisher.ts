@@ -94,6 +94,9 @@ export class Publisher<T = unknown> {
 
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
+      if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
+        this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
+      }
       const invalidPaths: string[] = []
       if (!this.writerAvroType.isValid(data, {errorHook: path => invalidPaths.push(path.join('.'))} )) {
         this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata, invalidPaths })

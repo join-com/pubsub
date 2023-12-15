@@ -228,7 +228,6 @@ export class Publisher<T = unknown> {
 
   private async doesTopicHaveSchemaAssigned(): Promise<boolean> {
     const [metadata] = await this.topic.getMetadata()
-    this.logger?.info('receivedMetadata:', JSON.stringify(metadata))
     const schemaName = metadata?.schemaSettings?.schema
     return !!schemaName
   }

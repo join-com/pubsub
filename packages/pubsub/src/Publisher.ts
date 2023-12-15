@@ -198,7 +198,7 @@ export class Publisher<T = unknown> {
 
 
   private async sendJsonMessage(message: MessageOptions) {
-    const messageId = await this.topic.publishMessage(message)
+    const messageId = await this.topic.publisher.publishMessage(message)
     this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { data: message.json as unknown, messageId })
   }
 

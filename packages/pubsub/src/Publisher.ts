@@ -37,14 +37,7 @@ export class Publisher<T = unknown> {
   private readonly avroMessageMetadata?: Record<string, string>
   private readonly fieldsProcessor = new FieldsProcessor()
   //TODO: remove flags below, when only avro will be used
-  private privateTopicHasAssignedSchema = false
-  get topicHasAssignedSchema(): boolean {
-    return this.privateTopicHasAssignedSchema
-  }
-  set topicHasAssignedSchema(value: boolean) {
-    this.privateTopicHasAssignedSchema = value
-    this.logger?.info(`topicHasAssignedSchema set to ${JSON.stringify(value)}`)
-  }
+  private topicHasAssignedSchema = false
   private avroSchemasProvided = false
 
   constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger,
@@ -235,7 +228,7 @@ export class Publisher<T = unknown> {
 
   private async doesTopicHaveSchemaAssigned(): Promise<boolean> {
     const [metadata] = await this.topic.getMetadata()
-    this.logger?.info('receivedMetadata:', metadata)
+    this.logger?.info('receivedMetadata:', JSON.stringify(metadata))
     const schemaName = metadata?.schemaSettings?.schema
     return !!schemaName
   }

@@ -67,7 +67,8 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
-  getMetadata: jest.fn()
+  getMetadata: jest.fn(),
+  setMetadata: jest.fn()
 })
 
 export const schemaMock = {

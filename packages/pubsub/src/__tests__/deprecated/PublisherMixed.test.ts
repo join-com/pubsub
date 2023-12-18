@@ -1,19 +1,20 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { Schema, Type } from 'avsc'
-import { createCallOptions } from '../createCallOptions'
-import { DateType } from '../logical-types/DateType'
-import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS, Publisher } from '../Publisher'
+import { createCallOptions } from '../../createCallOptions'
+import { PublisherMixed } from '../../deprecated/PublisherMixed'
+import { DateType } from '../../logical-types/DateType'
+import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from '../../Publisher'
 import {
   SCHEMA_DEFINITION_EXAMPLE, SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE,
   SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE,
   SCHEMA_EXAMPLE,
-} from './support/constants'
+} from '../support/constants'
 import {
   ConsoleLogger,
   getClientMock,
   getTopicMock, IMessageType,
   schemaMock,
-} from './support/pubsubMock'
+} from '../support/pubsubMock'
 
 
 const topic = 'topic-name'
@@ -31,11 +32,11 @@ const readerTypeWithArrays = Type.forSchema(SCHEMA_DEFINITION_READER_OPTIONAL_AR
 const DATE_WITH_UNSAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('3000-01-01T00:00:00.000Z')
 const MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS = new Date('2255-06-05T23:47:34.740Z')
 
-describe('Publisher', () => {
-  let publisher: Publisher
+describe('PublisherMixed', () => {
+  let publisher: PublisherMixed
 
   beforeEach(() => {
-    publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+    publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger())
   })
 
   afterEach(() => {
@@ -105,7 +106,7 @@ describe('Publisher', () => {
     }
 
     it('publishes avro json encoded object', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
@@ -126,7 +127,7 @@ describe('Publisher', () => {
         createdAt: 123,
         fourth: { flag: 'string' }
       }
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, consoleLogger, schemas)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, consoleLogger, schemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
 
@@ -140,7 +141,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro json with max allowed date value when date in micros overflows MAX_SAFE_INTEGER', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
@@ -156,7 +157,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with undefined array field in metadata', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -171,7 +172,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with undefined array field in metadata when array is null', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -186,7 +187,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with two undefined array field in metadata', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -200,7 +201,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages without undefined array field when all arrays are set', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new PublisherMixed(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()

@@ -1,25 +1,13 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
-import { ILogger } from './ILogger'
-import { ISubscriptionOptions, Subscriber, IParsedMessage, ISubscriberOptions, IMessageInfo } from './Subscriber'
+import { ILogger } from '../ILogger'
+import { ISubscriptionOptions, Subscriber, ISubscriberOptions } from '../Subscriber'
+import { ISubscriber, PUBSUB_CLIENT_CONNECTION_LIMIT, PUBSUB_DEFAULT_MAX_STREAMS } from '../SubscriberFactory'
 
 /**
- * The PubSub client has a hard limit of 100 connections. However we already experience the issue with messages
- * acknowledgement with 20 subscribers x 5 streams per subscriber = 100 connections. So lowering this limit to 80.
- * https://github.com/googleapis/nodejs-pubsub/issues/1705
+ * @deprecated should be used only when migration between json/avro is used
  */
-export const PUBSUB_CLIENT_CONNECTION_LIMIT = 80
-export const PUBSUB_DEFAULT_MAX_STREAMS = 5
-
-export interface ISubscriber<T> {
-  topicName: string
-  subscriptionName: string
-  initialize: () => Promise<void>
-  start: (asyncCallback: (msg: IParsedMessage<T>, info: IMessageInfo) => Promise<void>) => void
-  stop: () => Promise<void>
-}
-
-export class SubscriberFactory<T> {
+export class SubscriberFactoryMixed<T> {
   private readonly schemaServiceClient: SchemaServiceClient
   private readonly subscriberClient: SubscriberClient
   private currentClientConnections: number

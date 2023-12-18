@@ -1,14 +1,15 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
-import { createCallOptions } from '../createCallOptions'
-import { DateType } from '../logical-types/DateType'
-import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
+import { createCallOptions } from '../../createCallOptions'
+import { SubscriberMixed } from '../../deprecated/SubscriberMixed'
+import { DateType } from '../../logical-types/DateType'
+import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../../Subscriber'
 import {
   SCHEMA_DEFINITION_EXAMPLE,
   SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE,
   SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE,
-} from './support/constants'
+} from '../support/constants'
 import {
   ConsoleLogger,
   getClientMock,
@@ -18,7 +19,7 @@ import {
   getTopicMock,
   IMessageMock,
   schemaServiceClientMock,
-} from './support/pubsubMock'
+} from '../support/pubsubMock'
 
 const topicName = 'topic-name'
 const subscriptionName = 'subscription-name'
@@ -46,11 +47,11 @@ const subscriptionOptions: ISubscriptionOptions = {
 }
 
 describe('Subscriber', () => {
-  let subscriber: Subscriber
+  let subscriber: SubscriberMixed
 
   beforeEach(() => {
     process.env['GCLOUD_PROJECT'] = 'project'
-    subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub,
+    subscriber = new SubscriberMixed({ topicName, subscriptionName, subscriptionOptions }, clientMock as unknown as PubSub,
       schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
   })
 
@@ -140,7 +141,7 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
 
-      subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub,
+      subscriber = new SubscriberMixed({ topicName, subscriptionName }, clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient)
 
       await subscriber.initialize()
@@ -166,7 +167,7 @@ describe('Subscriber', () => {
       }
 
       beforeEach(() => {
-        subscriber = new Subscriber(
+        subscriber = new SubscriberMixed(
           { topicName, subscriptionName, subscriptionOptions: deadLetterOptions },
           clientMock as unknown as PubSub, schemaClientMock as unknown as SchemaServiceClient,
           undefined as unknown as SubscriberClient

@@ -1,61 +1,26 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Type } from 'avsc'
-import { createCallOptions } from './createCallOptions'
-import { FieldsProcessor } from './FieldsProcessor'
-import { ILogger } from './ILogger'
-import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from './Publisher'
-import { SchemaCache } from './SchemaCache'
-import { deepNullToUndefinedInObject } from './util'
+import { createCallOptions } from '../createCallOptions'
+import { FieldsProcessor } from '../FieldsProcessor'
+import { ILogger } from '../ILogger'
+import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from '../Publisher'
+import { SchemaCache } from '../SchemaCache'
+import {
+  IMessageInfo,
+  IParsedMessage,
+  ISubscriberOptions,
+  ISubscriptionInitializationOptions,
+  ISubscriptionOptions,
+} from '../Subscriber'
+import { DataParser } from './DataParser'
+import { replaceNullsWithUndefined } from './preserveNullUtil'
+import { JOIN_PRESERVE_NULL } from './PublisherMixed'
 
-export interface IParsedMessage<T = unknown> {
-  dataParsed: T
-  ack: () => void
-  nack: () => void
-}
-
-export interface IMessageInfo{
-  id: string
-  receivedAt: Date
-}
-
-export interface ISubscriptionOptions {
-  ackDeadline?: number
-  allowExcessMessages?: boolean
-  maxMessages?: number
-  maxStreams?: number
-  maxDeliveryAttempts?: number
-  minBackoffSeconds?: number
-  maxBackoffSeconds?: number
-  // TODO validate gcloudProject is given when isDeadLetterPolicyEnabled?
-  gcloudProject?: {
-    name: string
-    id: number
-  }
-}
-
-export interface ISubscriberOptions {
-  topicName: string
-  subscriptionName: string
-  subscriptionOptions?: ISubscriptionOptions
-}
-
-interface ISubscriptionRetryPolicy {
-  minimumBackoff?: { seconds?: number }
-  maximumBackoff?: { seconds?: number }
-}
-
-interface ISubscriptionDeadLetterPolicy {
-  maxDeliveryAttempts?: number
-  deadLetterTopic: string
-}
-
-export interface ISubscriptionInitializationOptions {
-  deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
-  retryPolicy: ISubscriptionRetryPolicy
-}
-
-export class Subscriber<T = unknown> {
+/**
+ * @deprecated should be used only when migration of the events/commands is not possible
+ */
+export class SubscriberMixed<T = unknown> {
   readonly topicName: string
   readonly subscriptionName: string
 
@@ -140,18 +105,27 @@ export class Subscriber<T = unknown> {
   }
 
   private async parseData(message: Message): Promise<T> {
-    let schemaId = message.attributes['googclient_schemarevisionid'] as string
+    let dataParsed: T
+    let schemaId = message.attributes['googclient_schemarevisionid']
 
+    // TODO: fix for the first couple of messages, that don't have "googclient_schemarevisionid" after the schema is assigned
+    // Ticket for Google Cloud will be created
     if (!schemaId && message.attributes['join_avdl_schema_version']) {
       schemaId = await this.schemaCache.getLatestSchemaRevisionId()
     }
 
-    const dataParsed = await this.parseAvroMessage(message, schemaId)
-    const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
-    if (undefinedOrNullOptionalArrays) {
-      this.fieldsProcessor.setEmptyArrayFieldsToUndefined(dataParsed as Record<string, unknown>, undefinedOrNullOptionalArrays.split(','))
+    // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
+    if (schemaId) {
+      dataParsed = await this.parseAvroMessage(message, schemaId)
+      const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
+      if (undefinedOrNullOptionalArrays) {
+        this.fieldsProcessor.setEmptyArrayFieldsToUndefined(dataParsed as Record<string, unknown>, undefinedOrNullOptionalArrays.split(','))
+      }
+      replaceNullsWithUndefined(dataParsed, message.attributes[JOIN_PRESERVE_NULL])
+    } else {
+      const dataParser = new DataParser()
+      dataParsed = dataParser.parse(message.data) as T
     }
-    deepNullToUndefinedInObject(dataParsed)
     this.logMessage(message, dataParsed)
     return dataParsed
   }

@@ -1,5 +1,5 @@
 /**
- * @deprecated remove the class as only avro should be used later
+ * @deprecated
  */
 export class DataParser {
   public parse(data: Buffer): unknown {

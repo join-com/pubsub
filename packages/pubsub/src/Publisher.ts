@@ -75,6 +75,12 @@ export class Publisher<T = unknown> {
       await this.sendJsonMessage({ json: data })
     } else if (!this.topicHasAssignedSchema) {
       try {
+        // on startup we send json message, and we are relying on switching to avro inside try-catch block.
+        // if json schema matches avro schema, which can only be if we have only one field with mandatory array of primitives
+        // we will send json message to avro topic, which will work, because JSON payload matches Avro encoded JSON payload
+        // we are losing some metadata because of this, but we are fine with this, because it's a only couple of events,
+        // that are not that important. Solution for this should be removing JSON, and using only avro.
+        // PR that can be used as base for this work: https://github.com/join-com/pubsub/pull/97
         await this.sendJsonMessage({ json: data })
         this.logWarnIfMessageViolatesSchema(data)
       } catch (e) {
@@ -198,6 +204,7 @@ export class Publisher<T = unknown> {
 
 
   private async sendJsonMessage(message: MessageOptions) {
+    // why we use this.topic.publisher described here: https://joinsolutionsag.atlassian.net/browse/JOIN-38534
     const messageId = await this.topic.publisher.publishMessage(message)
     this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { data: message.json as unknown, messageId })
   }

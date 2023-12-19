@@ -78,14 +78,14 @@ describe('Publisher', () => {
     it('publishes json object', async () => {
       await publisher.publishMsg(message)
 
-      expect(topicMock.publisher.publishMessage).toHaveBeenCalledWith({ json: message })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: message })
     })
 
     it('publishes json array', async () => {
       const array = [message, message]
       await publisher.publishMsg(array)
 
-      expect(topicMock.publisher.publishMessage).toHaveBeenCalledWith({ json: array })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
     })
   })
 

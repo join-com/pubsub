@@ -36,7 +36,8 @@ export class Publisher<T = unknown> {
 
   private readonly avroMessageMetadata?: Record<string, string>
   private readonly fieldsProcessor = new FieldsProcessor()
-  //TODO: remove flags below, when only avro will be used
+  //TODO: remove fields below, when only avro will be used, why we use jsonPublisher described here: https://joinsolutionsag.atlassian.net/browse/JOIN-38534
+  private jsonPublisher: Topic
   private topicHasAssignedSchema = false
   private avroSchemasProvided = false
 
@@ -56,6 +57,7 @@ export class Publisher<T = unknown> {
       this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
     }
     this.topic = client.topic(topicName)
+    this.jsonPublisher = client.topic(topicName, { gaxOpts: {retry: null}})
     this.topicSchemaName = `${this.topicName}-generated-avro`
   }
 
@@ -204,8 +206,7 @@ export class Publisher<T = unknown> {
 
 
   private async sendJsonMessage(message: MessageOptions) {
-    // why we use this.topic.publisher described here: https://joinsolutionsag.atlassian.net/browse/JOIN-38534
-    const messageId = await this.topic.publisher.publishMessage(message)
+    const messageId = await this.jsonPublisher.publishMessage(message)
     this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { data: message.json as unknown, messageId })
   }
 

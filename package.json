@@ -14,7 +14,7 @@
     "postinstall": "if [ -d .git ]; then git config core.hooksPath .hooks; fi"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": "^20.9.0"
   },
   "devDependencies": {
     "conventional-changelog-conventionalcommits": "^5.0.0",

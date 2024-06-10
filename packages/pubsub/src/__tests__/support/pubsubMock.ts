@@ -6,11 +6,11 @@ type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
 export interface IMessageType {
-  first?: string,
-  second?: string,
-  createdAt?: Date,
-  third?: string,
-  fourth?: {flag: boolean}
+  first?: string
+  second?: string
+  createdAt?: Date
+  third?: string
+  fourth?: { flag: boolean }
 }
 
 export const getIamMock = () => ({
@@ -67,7 +67,7 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
-  getMetadata: jest.fn()
+  getMetadata: jest.fn(),
 })
 
 export const schemaMock = {
@@ -76,11 +76,11 @@ export const schemaMock = {
 
 export const schemaServiceClientMock = {
   getSchema: jest.fn(),
-  listSchemaRevisions: jest.fn()
+  listSchemaRevisions: jest.fn(),
 }
 
 export const subscriberServiceClientMock = {
-  getSubscription: jest.fn()
+  getSubscription: jest.fn(),
 }
 
 export interface IClientMockOption {
@@ -89,7 +89,7 @@ export interface IClientMockOption {
 
 export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
   topic: jest.fn(() => topicMock),
-  schema: jest.fn(() => schemaMock)
+  schema: jest.fn(() => schemaMock),
 })
 
 export interface IMessageMock {
@@ -105,22 +105,22 @@ export const getMessageMock = (data: unknown): IMessageMock => {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
-    attributes: { }
+    attributes: {},
   }
 }
 
 export class ConsoleLogger implements ILogger {
-  error(message: string, payload: unknown | undefined): void {
+  public error(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }
 
-  info(message: string, payload: unknown | undefined): void {
+  public info(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }
 
-  warn(message: string, payload: unknown | undefined): void {
+  public warn(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }

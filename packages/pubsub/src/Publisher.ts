@@ -11,13 +11,13 @@ import { logWarnWhenUndefinedInNullPreserveFields } from './util'
 import Encoding = google.pubsub.v1.Encoding
 
 interface IMessageMetadata {
-  Event: string,
-  GeneratorVersion: string,
-  GeneratorGitRemoteOriginUrl: string,
+  Event: string
+  GeneratorVersion: string
+  GeneratorGitRemoteOriginUrl: string
   SchemaType: string
-  AvdlSchemaPathInGitRepo:  string,
-  AvdlSchemaGitRemoteOriginUrl: string,
-  AvdlSchemaVersion: string,
+  AvdlSchemaPathInGitRepo: string
+  AvdlSchemaGitRemoteOriginUrl: string
+  AvdlSchemaVersion: string
   PreserveNull?: string
   OptionalArrayPaths?: string
 }
@@ -41,8 +41,12 @@ export class Publisher<T = unknown> {
   private topicHasAssignedSchema = false
   private avroSchemasProvided = false
 
-  constructor(readonly topicName: string, readonly client: PubSub, private readonly logger?: ILogger,
-              avroSchemas?: { writer: object, reader: object }) {
+  constructor(
+    public readonly topicName: string,
+    public readonly client: PubSub,
+    private readonly logger?: ILogger,
+    avroSchemas?: { writer: object; reader: object },
+  ) {
     //TODO: avroSchemas parameter should be mandatory when only avro is used
     if (avroSchemas) {
       this.avroSchemasProvided = true
@@ -57,7 +61,7 @@ export class Publisher<T = unknown> {
       this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
     }
     this.topic = client.topic(topicName)
-    this.jsonPublisher = client.topic(topicName, { gaxOpts: {retry: null}})
+    this.jsonPublisher = client.topic(topicName, { gaxOpts: { retry: null } })
     this.topicSchemaName = `${this.topicName}-generated-avro`
   }
 
@@ -103,11 +107,18 @@ export class Publisher<T = unknown> {
   private logWarnIfMessageViolatesSchema(data: T): void {
     if (this.writerAvroType) {
       if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
-        this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
+        this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(
+          data as Record<string, unknown>,
+          this.optionArrayPaths,
+        )
       }
       const invalidPaths: string[] = []
-      if (!this.writerAvroType.isValid(data, {errorHook: path => invalidPaths.push(path.join('.'))} )) {
-        this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, { payload: data, metadata: this.avroMessageMetadata, invalidPaths })
+      if (!this.writerAvroType.isValid(data, { errorHook: path => invalidPaths.push(path.join('.')) })) {
+        this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, {
+          payload: data,
+          metadata: this.avroMessageMetadata,
+          invalidPaths,
+        })
       }
     }
   }
@@ -131,7 +142,7 @@ export class Publisher<T = unknown> {
     if (this.avroSchemasProvided) {
       this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
 
-      if (!this.topicHasAssignedSchema && await this.doesRegistryHaveTopicSchema()) {
+      if (!this.topicHasAssignedSchema && (await this.doesRegistryHaveTopicSchema())) {
         // TODO: this.setSchemaToTheTopic() should be replace with
         // ```await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
         // this.topicHasAssignedSchema = true```
@@ -144,7 +155,7 @@ export class Publisher<T = unknown> {
   private setSchemaToTheTopic() {
     const projectName = process.env['GCLOUD_PROJECT']
     if (!projectName) {
-      throw new Error('Can\'t find GCLOUD_PROJECT env variable, please define it')
+      throw new Error("Can't find GCLOUD_PROJECT env variable, please define it")
     }
 
     this.topic.request(
@@ -179,7 +190,10 @@ export class Publisher<T = unknown> {
   private async sendAvroMessage(data: T): Promise<void> {
     let currentMessageMetadata = this.avroMessageMetadata
     if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
-      const undefinedOrNullOptionalArrays = this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(data as Record<string, unknown>, this.optionArrayPaths)
+      const undefinedOrNullOptionalArrays = this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(
+        data as Record<string, unknown>,
+        this.optionArrayPaths,
+      )
       if (undefinedOrNullOptionalArrays.length > 0) {
         currentMessageMetadata = { ...currentMessageMetadata }
         currentMessageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = undefinedOrNullOptionalArrays.join(',')
@@ -189,8 +203,11 @@ export class Publisher<T = unknown> {
     // for now we are checking that avro is enabled before calling sendAvroMessage
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (!this.writerAvroType!.isValid(data)) {
-      this.logger?.error(`[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct ' +
-        'and payload can be encoded with it`, {payload: data, schemaMetadata: currentMessageMetadata})
+      this.logger?.error(
+        `[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct ' +
+        'and payload can be encoded with it`,
+        { payload: data, schemaMetadata: currentMessageMetadata },
+      )
       throw new Error(`[${this.topicName}] Can't encode the avro message for the topic`)
     }
     if (currentMessageMetadata && currentMessageMetadata[JOIN_PRESERVE_NULL]) {
@@ -203,11 +220,12 @@ export class Publisher<T = unknown> {
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
   }
 
-
-
   private async sendJsonMessage(message: MessageOptions) {
     const messageId = await this.jsonPublisher.publishMessage(message)
-    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, { data: message.json as unknown, messageId })
+    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, {
+      data: message.json as unknown,
+      messageId,
+    })
   }
 
   private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {
@@ -230,7 +248,7 @@ export class Publisher<T = unknown> {
 
   private getLibraryVersion(): string {
     const libPackageJsonPath = `${__dirname}/../package.json`
-    const packageJson = JSON.parse(readFileSync(libPackageJsonPath, 'utf8')) as { version: string}
+    const packageJson = JSON.parse(readFileSync(libPackageJsonPath, 'utf8')) as { version: string }
     return packageJson.version
   }
 

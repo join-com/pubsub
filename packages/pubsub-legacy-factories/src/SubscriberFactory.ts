@@ -8,7 +8,7 @@ export class SubscriberFactory {
   private readonly client: PubSub
   private readonly schemaServiceClient: SchemaServiceClient
 
-  constructor(readonly options: ISubscriptionOptions, private readonly logger: ILogger) {
+  constructor(public readonly options: ISubscriptionOptions, private readonly logger: ILogger) {
     this.client = new PubSub()
     this.schemaServiceClient = new SchemaServiceClient()
   }

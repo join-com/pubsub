@@ -15,7 +15,7 @@ export interface IParsedMessage<T = unknown> {
   nack: () => void
 }
 
-export interface IMessageInfo{
+export interface IMessageInfo {
   id: string
   receivedAt: Date
 }
@@ -57,8 +57,8 @@ interface ISubscriptionInitializationOptions {
 }
 
 export class Subscriber<T = unknown> {
-  readonly topicName: string
-  readonly subscriptionName: string
+  public readonly topicName: string
+  public readonly subscriptionName: string
 
   private readonly topic: Topic
   private readonly subscription: Subscription
@@ -112,7 +112,7 @@ export class Subscriber<T = unknown> {
     }
   }
 
-  public start(asyncCallback: (msg: IParsedMessage<T>, info : IMessageInfo) => Promise<void>): void {
+  public start(asyncCallback: (msg: IParsedMessage<T>, info: IMessageInfo) => Promise<void>): void {
     this.subscription.on('error', this.processError)
     this.subscription.on('message', this.processMsg(asyncCallback))
 
@@ -131,7 +131,7 @@ export class Subscriber<T = unknown> {
       attributes: message.attributes,
       publishTime: message.publishTime?.toISOString(),
       received: message.received,
-      deliveryAttempt: message.deliveryAttempt
+      deliveryAttempt: message.deliveryAttempt,
     }
 
     this.logger?.info(
@@ -155,7 +155,10 @@ export class Subscriber<T = unknown> {
       dataParsed = await this.parseAvroMessage(message, schemaId)
       const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
       if (undefinedOrNullOptionalArrays) {
-        this.fieldsProcessor.setEmptyArrayFieldsToUndefined(dataParsed as Record<string, unknown>, undefinedOrNullOptionalArrays.split(','))
+        this.fieldsProcessor.setEmptyArrayFieldsToUndefined(
+          dataParsed as Record<string, unknown>,
+          undefinedOrNullOptionalArrays.split(','),
+        )
       }
       replaceNullsWithUndefined(dataParsed, message.attributes[JOIN_PRESERVE_NULL])
     } else {
@@ -171,27 +174,30 @@ export class Subscriber<T = unknown> {
     return type.fromString(message.data.toString()) as T
   }
 
-
-  private processMsg(asyncCallback: (msg: IParsedMessage<T> , info: IMessageInfo) => Promise<void>): (message: Message) => void {
+  private processMsg(
+    asyncCallback: (msg: IParsedMessage<T>, info: IMessageInfo) => Promise<void>,
+  ): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {
       const dataParsed = await this.parseData(message)
       const messageParsed = Object.assign(message, { dataParsed })
-      const info : IMessageInfo = {
+      const info: IMessageInfo = {
         id: message.id,
-        receivedAt: new Date(message.received)
+        receivedAt: new Date(message.received),
       }
-      asyncCallback(messageParsed , info).catch(e => {
+      asyncCallback(messageParsed, info).catch(e => {
         message.nack()
         this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to process message:`, e)
       })
     }
 
     return (message: Message) => {
-      asyncMessageProcessor(message).then(_ => {
-        return
-      }).catch(e => {
-        throw e
-      })
+      asyncMessageProcessor(message)
+        .then(_ => {
+          return
+        })
+        .catch(e => {
+          throw e
+        })
     }
   }
 

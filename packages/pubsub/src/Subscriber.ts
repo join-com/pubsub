@@ -1,4 +1,5 @@
 import { IAM, Message, PubSub, Subscription, SubscriptionOptions, Topic } from '@google-cloud/pubsub'
+import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
@@ -8,6 +9,7 @@ import { ILogger } from './ILogger'
 import { JOIN_PRESERVE_NULL, JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from './Publisher'
 import { SchemaCache } from './SchemaCache'
 import { replaceNullsWithUndefined } from './util'
+import ISubscription = google.pubsub.v1.ISubscription
 
 export interface IParsedMessage<T = unknown> {
   dataParsed: T
@@ -227,8 +229,11 @@ export class Subscriber<T = unknown> {
       await subscription.create({ ...options, gaxOpts: createCallOptions })
       this.logger?.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
-      await subscription.setMetadata(options)
-      this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
+      const [existingSubscription] = await subscription.getMetadata()
+      if (this.isMetadataChanged(existingSubscription, options)) {
+        await subscription.setMetadata(options)
+        this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
+      }
     }
   }
 
@@ -317,5 +322,14 @@ export class Subscriber<T = unknown> {
         maxStreams: options?.maxStreams,
       },
     }
+  }
+
+  private isMetadataChanged(existingSubscription: ISubscription, options: ISubscriptionInitializationOptions): boolean {
+    return options.retryPolicy.minimumBackoff?.seconds &&
+      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds ||
+      options.retryPolicy.maximumBackoff?.seconds &&
+      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds ||
+      !!options.deadLetterPolicy?.maxDeliveryAttempts &&
+      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts
   }
 }

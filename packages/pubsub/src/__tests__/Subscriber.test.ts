@@ -63,6 +63,8 @@ describe('Subscriber', () => {
     subscriptionMock.exists.mockReset()
     subscriptionMock.create.mockReset()
     subscriptionMock.setMetadata.mockReset()
+    subscriptionMock.getMetadata.mockReset()
+    subscriptionMock.getMetadata.mockReset()
     iamTopicMock.setPolicy.mockReset()
     iamSubscriptionMock.setPolicy.mockReset()
     schemaClientMock.getSchema.mockReset()
@@ -73,6 +75,7 @@ describe('Subscriber', () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
 
       await subscriber.initialize()
 
@@ -84,6 +87,7 @@ describe('Subscriber', () => {
     it('does not create topic if exists', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
 
       await subscriber.initialize()
 
@@ -120,9 +124,15 @@ describe('Subscriber', () => {
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
     })
 
-    it('updates metadata if subscription exists', async () => {
+    it('updates metadata if backoff has changed', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        retryPolicy: {
+          minimumBackoff: { seconds: '45' },
+          maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
+        },
+      }])
 
       await subscriber.initialize()
 
@@ -136,9 +146,26 @@ describe('Subscriber', () => {
       })
     })
 
-    it('resets retry policy unless backoff values provided', async () => {
+    it('does not update metadata if subscription exists and did not change', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        retryPolicy: {
+            minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+            maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
+        },
+      }])
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('does not update retry policy if no values provided', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
 
       subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient)
@@ -146,10 +173,7 @@ describe('Subscriber', () => {
       await subscriber.initialize()
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
-      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
-        deadLetterPolicy: null,
-        retryPolicy: {},
-      })
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
     })
 
     describe('dead letter policy', () => {
@@ -176,6 +200,7 @@ describe('Subscriber', () => {
       describe('deadLetterTopic initialization', () => {
         beforeEach(() => {
           subscriptionMock.exists.mockResolvedValue([true])
+          subscriptionMock.getMetadata.mockResolvedValue([{}])
         })
 
         it('creates deadLetterTopic unless exists', async () => {
@@ -262,6 +287,7 @@ describe('Subscriber', () => {
 
         it('does not create deadLetterSubscription if exists', async () => {
           subscriptionMock.exists.mockResolvedValue([true])
+          subscriptionMock.getMetadata.mockResolvedValue([{}])
 
           await subscriber.initialize()
 
@@ -340,6 +366,7 @@ describe('Subscriber', () => {
     it('receives avro parsed data', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}])
 
@@ -362,6 +389,7 @@ describe('Subscriber', () => {
     it('receives avro parsed data with null preserve fields', async () => {
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}])
 
@@ -384,6 +412,7 @@ describe('Subscriber', () => {
     it('processes avro encoded data without assigned schema from gcloud', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.listSchemaRevisions.mockResolvedValue([[{revisionId: 'revision', definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}]])
 
@@ -406,6 +435,7 @@ describe('Subscriber', () => {
     it('processes avro encoded data with latest schema when schema from message can not be found', async () => {
         topicMock.exists.mockResolvedValue([true])
         subscriptionMock.exists.mockResolvedValue([true])
+        subscriptionMock.getMetadata.mockResolvedValue([{}])
         topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
 
         schemaClientMock.getSchema.mockRejectedValue(new Error('NOT_FOUND'))
@@ -429,6 +459,7 @@ describe('Subscriber', () => {
     it('receives avro parsed data and replaces empty array with undefined using path from metadata', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE)}])
 
@@ -452,6 +483,7 @@ describe('Subscriber', () => {
     it('receives avro parsed data and replaces 2 empty array with undefined using path from metadata', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{}])
       topicMock.getMetadata.mockResolvedValue([{'schemaSettings': {'schema': 'mock-schema'}}])
       schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE)}])
 

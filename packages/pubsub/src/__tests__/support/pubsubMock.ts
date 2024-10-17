@@ -68,7 +68,8 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   publishMessage: jest.fn(),
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
-  getMetadata: jest.fn()
+  getMetadata: jest.fn(),
+  setMetadata: jest.fn(),
 })
 
 export const schemaMock = {
@@ -100,28 +101,27 @@ export interface IMessageMock {
   attributes?: Record<string, string>
 }
 
-export const getMessageMock = (data: unknown): IMessageMock => {
-  const buffer = Buffer.from(JSON.stringify(data), 'utf8')
+export const getMessageMock = (buffer: Buffer): IMessageMock => {
   return {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
-    attributes: { }
+    attributes: {'googclient_schemarevisionid': 'example'},
   }
 }
 
 export class ConsoleLogger implements ILogger {
-  error(message: string, payload: unknown | undefined): void {
+  public error(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }
 
-  info(message: string, payload: unknown | undefined): void {
+  public info(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }
 
-  warn(message: string, payload: unknown | undefined): void {
+  public warn(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console
     console.log(message, payload)
   }

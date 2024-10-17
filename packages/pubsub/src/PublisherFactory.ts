@@ -17,21 +17,6 @@ export class PublisherFactory<TypeMap> {
   }
 
   public getPublisher<Topic extends keyof TypeMap> (topic: Topic): IPublisher<TypeMap[Topic]> {
-    return new Publisher(topic.toString(), this.client, this.logger, this.avroSchemas[topic])
-  }
-}
-
-/**
- * @deprecated should be used only when migration of the events/commands is not possible
- */
-export class PublisherFactorySchemaless<TypeMap> {
-  private readonly client: PubSub
-
-  constructor(private readonly logger: ILogger, private readonly avroSchemas?: Record<keyof TypeMap, { writer: object, reader: object }>) {
-    this.client = new PubSub()
-  }
-
-  public getPublisher<Topic extends keyof TypeMap> (topic: Topic): IPublisher<TypeMap[Topic]> {
-    return new Publisher(topic.toString(), this.client, this.logger, this.avroSchemas?.[topic])
+    return new Publisher(topic.toString(), this.client, this.avroSchemas[topic], this.logger)
   }
 }

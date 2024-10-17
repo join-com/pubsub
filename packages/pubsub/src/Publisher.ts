@@ -1,7 +1,6 @@
 import { readFileSync } from 'fs'
 import { PubSub, Topic } from '@google-cloud/pubsub'
 import { google } from '@google-cloud/pubsub/build/protos/protos'
-import { MessageOptions } from '@google-cloud/pubsub/build/src/topic'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
 import { FieldsProcessor } from './FieldsProcessor'
@@ -30,40 +29,31 @@ export class Publisher<T = unknown> {
   private readonly topic: Topic
   private readonly topicSchemaName: string
 
-  private readonly writerAvroType?: Type
-  private readonly readerAvroType?: Type
+  private readonly writerAvroType: Type
+  private readonly readerAvroType: Type
   private readonly optionArrayPaths?: string[]
 
   private readonly avroMessageMetadata?: Record<string, string>
-  private readonly fieldsProcessor = new FieldsProcessor()
-  //TODO: remove fields below, when only avro will be used, why we use jsonPublisher described here: https://joinsolutionsag.atlassian.net/browse/JOIN-38534
-  private jsonPublisher: Topic
-  private topicHasAssignedSchema = false
-  private avroSchemasProvided = false
-
   constructor(
     public readonly topicName: string,
     public readonly client: PubSub,
+    avroSchemas: { writer: object; reader: object },
     private readonly logger?: ILogger,
-    avroSchemas?: { writer: object; reader: object },
   ) {
-    //TODO: avroSchemas parameter should be mandatory when only avro is used
-    if (avroSchemas) {
-      this.avroSchemasProvided = true
-      const writerAvroSchema: SchemaWithMetadata = avroSchemas.writer as SchemaWithMetadata
-      this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
-      if (writerAvroSchema.OptionalArrayPaths) {
-        this.optionArrayPaths = writerAvroSchema.OptionalArrayPaths.split(',')
-      }
-      const readerAvroSchema: SchemaWithMetadata = avroSchemas.reader as SchemaWithMetadata
-      this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
-
-      this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
+    const writerAvroSchema: SchemaWithMetadata = avroSchemas.writer as SchemaWithMetadata
+    this.writerAvroType = Type.forSchema(writerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+    if (writerAvroSchema.OptionalArrayPaths) {
+      this.optionArrayPaths = writerAvroSchema.OptionalArrayPaths.split(',')
     }
+    const readerAvroSchema: SchemaWithMetadata = avroSchemas.reader as SchemaWithMetadata
+    this.readerAvroType = Type.forSchema(readerAvroSchema, { logicalTypes: { 'timestamp-micros': DateType } })
+
+    this.avroMessageMetadata = this.prepareAvroMessageMetadata(readerAvroSchema)
     this.topic = client.topic(topicName)
-    this.jsonPublisher = client.topic(topicName, { gaxOpts: { retry: null } })
     this.topicSchemaName = `${this.topicName}-generated-avro`
   }
+
+  private readonly fieldsProcessor = new FieldsProcessor()
 
   public async initialize(): Promise<void> {
     try {
@@ -76,51 +66,7 @@ export class Publisher<T = unknown> {
   }
 
   public async publishMsg(data: T): Promise<void> {
-    if (!this.avroSchemasProvided) {
-      // old flow, just send message if no avro schemas provided
-      await this.sendJsonMessage({ json: data })
-    } else if (!this.topicHasAssignedSchema) {
-      try {
-        // on startup we send json message, and we are relying on switching to avro inside try-catch block.
-        // if json schema matches avro schema, which can only be if we have only one field with mandatory array of primitives
-        // we will send json message to avro topic, which will work, because JSON payload matches Avro encoded JSON payload
-        // we are losing some metadata because of this, but we are fine with this, because it's a only couple of events,
-        // that are not that important. Solution for this should be removing JSON, and using only avro.
-        // PR that can be used as base for this work: https://github.com/join-com/pubsub/pull/97
-        await this.sendJsonMessage({ json: data })
-        this.logWarnIfMessageViolatesSchema(data)
-      } catch (e) {
-        //it's a corner case when application started without schema on topic, and then schema was added to the topic
-        //in this case we are trying to resend message with avro format if schema appeared
-        this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
-        if (!this.topicHasAssignedSchema) {
-          throw e
-        }
-        await this.sendAvroMessage(data)
-      }
-    } else {
-      // TODO: remove everything except this call after services will be ready to use only avro
-      await this.sendAvroMessage(data)
-    }
-  }
-
-  private logWarnIfMessageViolatesSchema(data: T): void {
-    if (this.writerAvroType) {
-      if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
-        this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(
-          data as Record<string, unknown>,
-          this.optionArrayPaths,
-        )
-      }
-      const invalidPaths: string[] = []
-      if (!this.writerAvroType.isValid(data, { errorHook: path => invalidPaths.push(path.join('.')) })) {
-        this.logger?.warn(`[schema-violation] [${this.topicName}] Message violates writer avro schema`, {
-          payload: data,
-          metadata: this.avroMessageMetadata,
-          invalidPaths,
-        })
-      }
-    }
+    await this.sendAvroMessage(data)
   }
 
   public async flush(): Promise<void> {
@@ -139,52 +85,15 @@ export class Publisher<T = unknown> {
   }
 
   private async initializeTopicSchema(): Promise<void> {
-    if (this.avroSchemasProvided) {
-      this.topicHasAssignedSchema = await this.doesTopicHaveSchemaAssigned()
-
-      if (!this.topicHasAssignedSchema && (await this.doesRegistryHaveTopicSchema())) {
-        // TODO: this.setSchemaToTheTopic() should be replace with
-        // ```await this.topic.setMetadata({ schemaSettings: { schema: this.topicSchemaName, encoding: Encoding.JSON }})
-        // this.topicHasAssignedSchema = true```
-        // once https://github.com/googleapis/nodejs-pubsub/issues/1587 is fixed
-        this.setSchemaToTheTopic()
+    if (!await this.doesTopicHaveSchemaAssigned()) {
+      const projectName = process.env['GCLOUD_PROJECT']
+      if (!projectName) {
+        throw new Error("Can't find GCLOUD_PROJECT env variable, please define it")
       }
+      const schema = `projects/${projectName}/schemas/${this.topicSchemaName}`
+      await this.topic.setMetadata({ schemaSettings: { schema, encoding: Encoding.JSON }})
+      this.logger?.info(`PubSub: Schema ${schema} is assigned to the topic: ${this.topicName}`)
     }
-  }
-
-  private setSchemaToTheTopic() {
-    const projectName = process.env['GCLOUD_PROJECT']
-    if (!projectName) {
-      throw new Error("Can't find GCLOUD_PROJECT env variable, please define it")
-    }
-
-    this.topic.request(
-      {
-        client: 'PublisherClient',
-        method: 'updateTopic',
-        reqOpts: {
-          topic: {
-            name: `projects/${projectName}/topics/${this.topicName}`,
-            schemaSettings: {
-              schema: `projects/${projectName}/schemas/${this.topicSchemaName}`,
-              encoding: Encoding.JSON,
-            },
-          },
-          updateMask: {
-            paths: ['schema_settings'],
-          },
-        },
-        gaxOpts: {},
-      },
-      (err, _) => {
-        if (!err) {
-          this.topicHasAssignedSchema = true
-          this.logger?.info(`Schema '${this.topicSchemaName}' set to the topic '${this.topicName}'`)
-        } else {
-          this.logger?.error(`Couldn't set schema '${this.topicSchemaName}'  to the topic '${this.topicName}'`)
-        }
-      },
-    )
   }
 
   private async sendAvroMessage(data: T): Promise<void> {
@@ -199,10 +108,7 @@ export class Publisher<T = unknown> {
         currentMessageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = undefinedOrNullOptionalArrays.join(',')
       }
     }
-    // TODO: remove non-null assertion and eslint-disable when avroType will be mandatory on every topic
-    // for now we are checking that avro is enabled before calling sendAvroMessage
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    if (!this.writerAvroType!.isValid(data)) {
+    if (!this.writerAvroType.isValid(data)) {
       this.logger?.error(
         `[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct ' +
         'and payload can be encoded with it`,
@@ -214,18 +120,9 @@ export class Publisher<T = unknown> {
       logWarnWhenUndefinedInNullPreserveFields(data, currentMessageMetadata[JOIN_PRESERVE_NULL], this.logger)
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const buffer = Buffer.from(this.readerAvroType!.toString(data))
+    const buffer = Buffer.from(this.readerAvroType.toString(data))
     const messageId = await this.topic.publishMessage({ data: buffer, attributes: currentMessageMetadata })
     this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
-  }
-
-  private async sendJsonMessage(message: MessageOptions) {
-    const messageId = await this.jsonPublisher.publishMessage(message)
-    this.logger?.info(`PubSub: JSON Message sent for topic: ${this.topicName}:`, {
-      data: message.json as unknown,
-      messageId,
-    })
   }
 
   private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {
@@ -256,14 +153,5 @@ export class Publisher<T = unknown> {
     const [metadata] = await this.topic.getMetadata()
     const schemaName = metadata?.schemaSettings?.schema
     return !!schemaName
-  }
-
-  public async doesRegistryHaveTopicSchema(): Promise<boolean> {
-    try {
-      return !!(await this.client.schema(this.topicSchemaName).get())
-    } catch (e) {
-      this.logger?.info(`Schema ${this.topicSchemaName} can't be found`, e)
-      return false
-    }
   }
 }

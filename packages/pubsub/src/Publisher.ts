@@ -34,6 +34,8 @@ export class Publisher<T = unknown> {
   private readonly optionArrayPaths?: string[]
 
   private readonly avroMessageMetadata?: Record<string, string>
+  private readonly fieldsProcessor = new FieldsProcessor()
+
   constructor(
     public readonly topicName: string,
     public readonly client: PubSub,
@@ -52,8 +54,6 @@ export class Publisher<T = unknown> {
     this.topic = client.topic(topicName)
     this.topicSchemaName = `${this.topicName}-generated-avro`
   }
-
-  private readonly fieldsProcessor = new FieldsProcessor()
 
   public async initialize(): Promise<void> {
     try {

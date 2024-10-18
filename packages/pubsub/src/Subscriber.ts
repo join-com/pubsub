@@ -327,6 +327,6 @@ export class Subscriber<T = unknown> {
       String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds ||
       !!options.deadLetterPolicy?.maxDeliveryAttempts &&
       options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts ||
-      !!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
+      (!!options.labels || options.labels == null) && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
   }
 }

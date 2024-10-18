@@ -199,6 +199,30 @@ describe('Subscriber', () => {
       })
     })
 
+    it('updates labels if labels were not empty and now are set to null', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        labels: { testKey: 'testValue' },
+      }])
+      const optionsWithNullLabels = { ...subscriptionOptions, labels: null }
+      subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions: optionsWithNullLabels },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: null,
+      })
+    })
+
     describe('dead letter policy', () => {
       const deadLetterTopicName = 'subscription-name-unack'
       const deadLetterSubscriptionName = 'subscription-name-unack'

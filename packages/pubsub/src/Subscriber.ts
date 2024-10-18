@@ -34,7 +34,7 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
-  labels?: ({ [k: string]: string }|null);
+  labels?: ({ [k: string]: string } | null);
 }
 
 export interface ISubscriberOptions {
@@ -56,7 +56,7 @@ interface ISubscriptionDeadLetterPolicy {
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
-  labels?: ({ [k: string]: string }|null);
+  labels?: ({ [k: string]: string } | null);
 }
 
 export class Subscriber<T = unknown> {

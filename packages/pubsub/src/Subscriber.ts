@@ -3,7 +3,6 @@ import { google } from '@google-cloud/pubsub/build/protos/protos'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Type } from 'avsc'
 import { createCallOptions } from './createCallOptions'
-import { DataParser } from './DataParser'
 import { FieldsProcessor } from './FieldsProcessor'
 import { ILogger } from './ILogger'
 import { JOIN_PRESERVE_NULL, JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS } from './Publisher'
@@ -143,30 +142,21 @@ export class Subscriber<T = unknown> {
   }
 
   private async parseData(message: Message): Promise<T> {
-    let dataParsed: T
     let schemaId = message.attributes['googclient_schemarevisionid']
-
-    // TODO: fix for the first couple of messages, that don't have "googclient_schemarevisionid" after the schema is assigned
-    // Ticket for Google Cloud will be created
-    if (!schemaId && message.attributes['join_avdl_schema_version']) {
+    if (!schemaId) {
+      this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Message does not have schema revision id`, { message })
       schemaId = await this.schemaCache.getLatestSchemaRevisionId()
     }
 
-    // TODO: remove if else block as only avro should be used, throw error if there is no schema revision
-    if (schemaId) {
-      dataParsed = await this.parseAvroMessage(message, schemaId)
-      const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
-      if (undefinedOrNullOptionalArrays) {
-        this.fieldsProcessor.setEmptyArrayFieldsToUndefined(
-          dataParsed as Record<string, unknown>,
-          undefinedOrNullOptionalArrays.split(','),
-        )
-      }
-      replaceNullsWithUndefined(dataParsed, message.attributes[JOIN_PRESERVE_NULL])
-    } else {
-      const dataParser = new DataParser()
-      dataParsed = dataParser.parse(message.data) as T
+    const dataParsed = await this.parseAvroMessage(message, schemaId)
+    const undefinedOrNullOptionalArrays = message.attributes[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS]
+    if (undefinedOrNullOptionalArrays) {
+      this.fieldsProcessor.setEmptyArrayFieldsToUndefined(
+        dataParsed as Record<string, unknown>,
+        undefinedOrNullOptionalArrays.split(','),
+      )
     }
+    replaceNullsWithUndefined(dataParsed, message.attributes[JOIN_PRESERVE_NULL])
     this.logMessage(message, dataParsed)
     return dataParsed
   }

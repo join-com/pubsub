@@ -6,11 +6,11 @@ type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
 export interface IMessageType {
-  first?: string
-  second?: string
-  createdAt?: Date
-  third?: string
-  fourth?: { flag: boolean }
+  first?: string,
+  second?: string,
+  createdAt?: Date,
+  third?: string,
+  fourth?: {flag: boolean}
 }
 
 export const getIamMock = () => ({
@@ -69,6 +69,7 @@ export const getTopicMock = ({ subscriptionMock, iamMock }: ITopicMockOption = {
   subscription: jest.fn(() => subscriptionMock),
   iam: iamMock,
   getMetadata: jest.fn(),
+  setMetadata: jest.fn(),
 })
 
 export const schemaMock = {
@@ -77,11 +78,11 @@ export const schemaMock = {
 
 export const schemaServiceClientMock = {
   getSchema: jest.fn(),
-  listSchemaRevisions: jest.fn(),
+  listSchemaRevisions: jest.fn()
 }
 
 export const subscriberServiceClientMock = {
-  getSubscription: jest.fn(),
+  getSubscription: jest.fn()
 }
 
 export interface IClientMockOption {
@@ -90,7 +91,7 @@ export interface IClientMockOption {
 
 export const getClientMock = ({ topicMock }: IClientMockOption = {}) => ({
   topic: jest.fn(() => topicMock),
-  schema: jest.fn(() => schemaMock),
+  schema: jest.fn(() => schemaMock)
 })
 
 export interface IMessageMock {
@@ -100,13 +101,12 @@ export interface IMessageMock {
   attributes?: Record<string, string>
 }
 
-export const getMessageMock = (data: unknown): IMessageMock => {
-  const buffer = Buffer.from(JSON.stringify(data), 'utf8')
+export const getMessageMock = (buffer: Buffer): IMessageMock => {
   return {
     data: buffer,
     ack: jest.fn(),
     nack: jest.fn(),
-    attributes: {},
+    attributes: {'googclient_schemarevisionid': 'example'},
   }
 }
 

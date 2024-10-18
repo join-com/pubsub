@@ -6,7 +6,6 @@ import { JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS, Publisher } from '../Publisher'
 import {
   SCHEMA_DEFINITION_EXAMPLE, SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE,
   SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE,
-  SCHEMA_EXAMPLE,
 } from './support/constants'
 import {
   ConsoleLogger,
@@ -35,19 +34,18 @@ describe('Publisher', () => {
   let publisher: Publisher
 
   beforeEach(() => {
-    publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger())
+    process.env['GCLOUD_PROJECT'] = 'project'
+    publisher = new Publisher(topic, clientMock as unknown as PubSub, schemas, new ConsoleLogger())
   })
 
   afterEach(() => {
     clientMock.topic.mockClear()
-    clientMock.schema.mockClear()
     topicMock.exists.mockReset()
     topicMock.create.mockReset()
     topicMock.publishMessage.mockReset()
     topicMock.getMetadata.mockReset()
     schemaMock.get.mockReset()
     processAbortSpy.mockClear()
-
   })
 
   describe('initialize', () => {
@@ -72,22 +70,6 @@ describe('Publisher', () => {
     })
   })
 
-  describe('publishMsg on topic without schema', () => {
-    const message = { id: 1 }
-
-    it('publishes json object', async () => {
-      await publisher.publishMsg(message)
-
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: message })
-    })
-
-    it('publishes json array', async () => {
-      const array = [message, message]
-      await publisher.publishMsg(array)
-
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ json: array })
-    })
-  })
 
   describe('publishMsg on topic with schema', () => {
     const message = { first: 'one', second: 'two', createdAt: new Date() }
@@ -105,10 +87,8 @@ describe('Publisher', () => {
     }
 
     it('publishes avro json encoded object', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
-      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
       await publisher.initialize()
 
       await publisher.publishMsg(message)
@@ -116,34 +96,10 @@ describe('Publisher', () => {
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
     })
 
-    it('logs invalid properties when schema does not match', async () => {
-      const consoleLogger = new ConsoleLogger()
-      const loggerSpy = jest.spyOn(consoleLogger, 'warn')
-
-      const invalidMessage = {
-        first: 'some',
-        second: 123,
-        createdAt: 123,
-        fourth: { flag: 'string' }
-      }
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, consoleLogger, schemas)
-      topicMock.exists.mockResolvedValue([true])
-      topicMock.getMetadata.mockResolvedValue([])
-
-      await publisher.initialize()
-      await publisher.publishMsg(invalidMessage)
-
-      expect(loggerSpy).toHaveBeenCalledWith('[schema-violation] [topic-name] Message violates writer avro schema',
-        expect.objectContaining({
-          invalidPaths: ['second', 'createdAt', 'fourth.flag'],
-        }))
-    })
-
     it('publishes avro json with max allowed date value when date in micros overflows MAX_SAFE_INTEGER', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemas)
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemas, new ConsoleLogger())
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
-      schemaMock.get.mockResolvedValue(SCHEMA_EXAMPLE)
       await publisher.initialize()
 
       const message = { first: 'one', createdAt: DATE_WITH_UNSAFE_NUMBER_TIMESTAMP_IN_MICROS }
@@ -156,7 +112,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with undefined array field in metadata', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemasWithArrays, new ConsoleLogger())
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -171,7 +127,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with undefined array field in metadata when array is null', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemasWithArrays, new ConsoleLogger())
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -186,7 +142,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages with two undefined array field in metadata', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemasWithArrays, new ConsoleLogger())
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()
@@ -200,7 +156,7 @@ describe('Publisher', () => {
     })
 
     it('publishes avro encoded messages without undefined array field when all arrays are set', async () => {
-      publisher = new Publisher(topic, clientMock as unknown as PubSub, new ConsoleLogger(), schemasWithArrays)
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemasWithArrays, new ConsoleLogger())
       topicMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
       await publisher.initialize()

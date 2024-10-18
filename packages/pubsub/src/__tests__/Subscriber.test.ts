@@ -16,7 +16,6 @@ import {
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
-  IMessageMock,
   schemaServiceClientMock,
 } from './support/pubsubMock'
 
@@ -338,30 +337,12 @@ describe('Subscriber', () => {
   })
 
   describe('start', () => {
-    const data = { id: 1, createdAt: new Date() }
     const avroData = { first: 'one', second: 'two', third: undefined,
       createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)')}
     const avroDataPreserveNullMessageFromAvro = { first: 'one', second: 'two', third: undefined,
       createdAt: new Date('Thu Nov 05 2015 11:38:05 GMT-0800 (PST)'),
       now: { id: null, firstName: null }}
 
-    let messageMock: IMessageMock
-
-    beforeEach(() => {
-      messageMock = getMessageMock(data)
-    })
-
-    it('receives parsed data', async () => {
-      let parsedMessage: IParsedMessage<unknown> | undefined
-      subscriber.start(msg => {
-        parsedMessage = msg
-        return Promise.resolve()
-      })
-
-      await subscriptionMock.receiveMessage(messageMock)
-
-      expect(parsedMessage?.dataParsed).toEqual(data)
-    })
 
     it('receives avro parsed data', async () => {
       topicMock.exists.mockResolvedValue([true])
@@ -372,16 +353,12 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      messageMock.data = Buffer.from(type.toString(avroData))
-      messageMock.attributes = {'googclient_schemarevisionid': 'example'}
-
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
         parsedMessage = msg
         return Promise.resolve()
       })
-
-      await subscriptionMock.receiveMessage(messageMock)
+      await subscriptionMock.receiveMessage(getMessageMock(Buffer.from(type.toString(avroData))))
       await flushPromises()
       expect(parsedMessage?.dataParsed).toEqual(avroData)
     })
@@ -395,7 +372,7 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      messageMock.data = Buffer.from(typeWithPreserveNull.toString(avroDataPreserveNullMessageFromAvro))
+      const messageMock = getMessageMock(Buffer.from(typeWithPreserveNull.toString(avroDataPreserveNullMessageFromAvro)))
       messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_preserve_null': 'now'}
 
       let parsedMessage: IParsedMessage<unknown> | undefined
@@ -418,8 +395,8 @@ describe('Subscriber', () => {
 
       await subscriber.initialize()
 
-      messageMock.data = Buffer.from(type.toString(avroData))
-      messageMock.attributes = {'join_avdl_schema_version': 'example'}
+      const messageMock = getMessageMock(Buffer.from(type.toString(avroData)))
+      messageMock.attributes = { }
 
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -442,8 +419,7 @@ describe('Subscriber', () => {
         schemaClientMock.listSchemaRevisions.mockResolvedValue([[{revisionId: 'revision', definition: JSON.stringify(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE)}]])
         await subscriber.initialize()
 
-        messageMock.data = Buffer.from(type.toString(avroData))
-        messageMock.attributes = {'googclient_schemarevisionid': 'example'}
+        const messageMock = getMessageMock(Buffer.from(type.toString(avroData)))
 
         let parsedMessage: IParsedMessage<unknown> | undefined
         subscriber.start(msg => {
@@ -467,7 +443,7 @@ describe('Subscriber', () => {
 
       const publishedMessage = { first: 'one', tags: ['tag'] }
       const receivedMessage = { first: 'one', tags: ['tag'], languages: [] }
-      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
+      const messageMock =  getMessageMock(Buffer.from(readerTypeWithArrays.toString(receivedMessage)))
       messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages' }
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -491,7 +467,7 @@ describe('Subscriber', () => {
 
       const publishedMessage = { first: 'one'}
       const receivedMessage = { first: 'one', tags: [], languages: []}
-      messageMock.data =  Buffer.from(readerTypeWithArrays.toString(receivedMessage))
+      const messageMock = getMessageMock(Buffer.from(readerTypeWithArrays.toString(receivedMessage)))
       messageMock.attributes = {'googclient_schemarevisionid': 'example', 'join_undefined_or_null_optional_arrays': 'languages,tags'}
       let parsedMessage: IParsedMessage<unknown> | undefined
       subscriber.start(msg => {
@@ -505,9 +481,12 @@ describe('Subscriber', () => {
     })
 
     it('unacknowledges message if processing fails', async () => {
+      schemaClientMock.getSchema.mockResolvedValue([{definition: JSON.stringify(SCHEMA_DEFINITION_EXAMPLE)}])
       subscriber.start(() => Promise.reject('Something wrong'))
+      const messageMock = getMessageMock(Buffer.from(type.toString(avroData)))
 
       await subscriptionMock.receiveMessage(messageMock)
+      await flushPromises()
 
       expect(messageMock.nack).toHaveBeenCalled()
     })

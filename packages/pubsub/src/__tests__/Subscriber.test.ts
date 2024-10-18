@@ -42,6 +42,7 @@ const subscriptionOptions: ISubscriptionOptions = {
   maxStreams: 1,
   minBackoffSeconds: 1,
   maxBackoffSeconds: 10,
+  labels: { testKey: 'testValue'}
 }
 
 describe('Subscriber', () => {
@@ -106,6 +107,7 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
           maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
+        labels: subscriptionOptions.labels,
         gaxOpts: createCallOptions,
       })
 
@@ -142,6 +144,7 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
           maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
+        labels: subscriptionOptions.labels,
       })
     })
 
@@ -153,6 +156,7 @@ describe('Subscriber', () => {
             minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
             maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
         },
+        labels: subscriptionOptions.labels,
       }])
 
       await subscriber.initialize()
@@ -173,6 +177,26 @@ describe('Subscriber', () => {
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('updates labels if labels have changed', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        labels: { testKey: 'oldValue' },
+      }])
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: subscriptionOptions.labels,
+      })
     })
 
     describe('dead letter policy', () => {
@@ -330,6 +354,7 @@ describe('Subscriber', () => {
               deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
             },
             gaxOpts: createCallOptions,
+            labels: subscriptionOptions.labels,
           })
         })
       })

@@ -34,6 +34,7 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
+  labels?: ({ [k: string]: string }|null);
 }
 
 export interface ISubscriberOptions {
@@ -55,6 +56,7 @@ interface ISubscriptionDeadLetterPolicy {
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
+  labels?: ({ [k: string]: string }|null);
 }
 
 export class Subscriber<T = unknown> {
@@ -286,6 +288,10 @@ export class Subscriber<T = unknown> {
       }
     }
 
+    if (subscriptionOptions.labels !== undefined) {
+      options.labels = subscriptionOptions.labels
+    }
+
     if (this.deadLetterTopic && this.deadLetterTopicName) {
       const gcloudProjectName = subscriptionOptions.gcloudProject?.name
       if (!gcloudProjectName) {
@@ -320,6 +326,7 @@ export class Subscriber<T = unknown> {
       options.retryPolicy.maximumBackoff?.seconds &&
       String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds ||
       !!options.deadLetterPolicy?.maxDeliveryAttempts &&
-      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts
+      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts ||
+      !!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
   }
 }

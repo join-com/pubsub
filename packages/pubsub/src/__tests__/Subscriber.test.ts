@@ -42,6 +42,7 @@ const subscriptionOptions: ISubscriptionOptions = {
   maxStreams: 1,
   minBackoffSeconds: 1,
   maxBackoffSeconds: 10,
+  labels: { testKey: 'testValue'}
 }
 
 describe('Subscriber', () => {
@@ -106,6 +107,7 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
           maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
+        labels: subscriptionOptions.labels,
         gaxOpts: createCallOptions,
       })
 
@@ -142,6 +144,7 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
           maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
+        labels: subscriptionOptions.labels,
       })
     })
 
@@ -153,6 +156,7 @@ describe('Subscriber', () => {
             minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
             maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
         },
+        labels: subscriptionOptions.labels,
       }])
 
       await subscriber.initialize()
@@ -168,6 +172,75 @@ describe('Subscriber', () => {
 
       subscriber = new Subscriber({ topicName, subscriptionName }, clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient)
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('updates labels if labels have changed', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        labels: { testKey: 'oldValue' },
+      }])
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: subscriptionOptions.labels,
+      })
+    })
+
+    it('updates labels if labels were not empty and now are set to null', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        retryPolicy: {
+          minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+          maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
+        },
+        labels: { testKey: 'testValue' },
+      }])
+      const optionsWithNullLabels = { ...subscriptionOptions, labels: null }
+      subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions: optionsWithNullLabels },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: null,
+      })
+    })
+
+    it('does not update labels if labels were empty and now are set to null', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        retryPolicy: {
+          minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+          maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) }
+        },
+        labels: {},
+      }])
+      const optionsWithNullLabels = { ...subscriptionOptions, labels: null }
+      subscriber = new Subscriber({ topicName, subscriptionName, subscriptionOptions: optionsWithNullLabels },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
 
       await subscriber.initialize()
 
@@ -330,6 +403,7 @@ describe('Subscriber', () => {
               deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
             },
             gaxOpts: createCallOptions,
+            labels: subscriptionOptions.labels,
           })
         })
       })

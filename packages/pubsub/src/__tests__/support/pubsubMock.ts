@@ -6,11 +6,11 @@ type EventHandler = (attrs: unknown) => Promise<unknown>
 type EventHandlerMap = { [key: string]: EventHandler }
 
 export interface IMessageType {
-  first?: string,
-  second?: string,
-  createdAt?: Date,
-  third?: string,
-  fourth?: {flag: boolean}
+  first?: string
+  second?: string
+  createdAt?: Date
+  third?: string
+  fourth?: { flag: boolean }
 }
 
 export const getIamMock = () => ({

@@ -34,6 +34,7 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
+  labels?: ({ [k: string]: string } | null);
 }
 
 export interface ISubscriberOptions {
@@ -55,6 +56,7 @@ interface ISubscriptionDeadLetterPolicy {
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
+  labels?: ({ [k: string]: string } | null);
 }
 
 export class Subscriber<T = unknown> {
@@ -286,6 +288,10 @@ export class Subscriber<T = unknown> {
       }
     }
 
+    if (subscriptionOptions.labels !== undefined) {
+      options.labels = subscriptionOptions.labels
+    }
+
     if (this.deadLetterTopic && this.deadLetterTopicName) {
       const gcloudProjectName = subscriptionOptions.gcloudProject?.name
       if (!gcloudProjectName) {
@@ -315,11 +321,23 @@ export class Subscriber<T = unknown> {
   }
 
   private isMetadataChanged(existingSubscription: ISubscription, options: ISubscriptionInitializationOptions): boolean {
-    return options.retryPolicy.minimumBackoff?.seconds &&
-      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds ||
-      options.retryPolicy.maximumBackoff?.seconds &&
-      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds ||
-      !!options.deadLetterPolicy?.maxDeliveryAttempts &&
-      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts
+    if (options.retryPolicy.minimumBackoff?.seconds &&
+      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds) {
+      return true
+    }
+    if (options.retryPolicy.maximumBackoff?.seconds &&
+      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds) {
+      return true
+    }
+    if (!!options.deadLetterPolicy?.maxDeliveryAttempts &&
+      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts) {
+      return true
+    }
+    if (!!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
+      || options.labels == null && !!existingSubscription.labels && Object.keys(existingSubscription.labels).length !== 0) {
+      return true
+    }
+
+    return false
   }
 }

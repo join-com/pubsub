@@ -321,12 +321,23 @@ export class Subscriber<T = unknown> {
   }
 
   private isMetadataChanged(existingSubscription: ISubscription, options: ISubscriptionInitializationOptions): boolean {
-    return options.retryPolicy.minimumBackoff?.seconds &&
-      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds ||
-      options.retryPolicy.maximumBackoff?.seconds &&
-      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds ||
-      !!options.deadLetterPolicy?.maxDeliveryAttempts &&
-      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts ||
-      (!!options.labels || options.labels == null) && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
+    if (options.retryPolicy.minimumBackoff?.seconds &&
+      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds) {
+      return true
+    }
+    if (options.retryPolicy.maximumBackoff?.seconds &&
+      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds) {
+      return true
+    }
+    if (!!options.deadLetterPolicy?.maxDeliveryAttempts &&
+      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts) {
+      return true
+    }
+    if (!!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
+      || options.labels == null && !!existingSubscription.labels && Object.keys(existingSubscription.labels).length !== 0) {
+      return true
+    }
+
+    return false
   }
 }

@@ -34,7 +34,8 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
-  labels?: ({ [k: string]: string } | null);
+  labels?: ({ [k: string]: string } | null)
+  filter?: string
 }
 
 export interface ISubscriberOptions {
@@ -57,6 +58,7 @@ interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
   labels?: ({ [k: string]: string } | null);
+  filter?: string
 }
 
 export class Subscriber<T = unknown> {
@@ -222,6 +224,10 @@ export class Subscriber<T = unknown> {
       this.logger?.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
       const [existingSubscription] = await subscription.getMetadata()
+      if (existingSubscription.filter && options.filter && options.filter !== existingSubscription.filter) {
+        throw new Error(`PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
+          ` currentFilter: ${existingSubscription.filter}, newFilter: ${options.filter}`)
+      }
       if (this.isMetadataChanged(existingSubscription, options)) {
         await subscription.setMetadata(options)
         this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
@@ -302,6 +308,10 @@ export class Subscriber<T = unknown> {
           deadLetterTopic: `projects/${gcloudProjectName}/topics/${this.deadLetterTopicName}`,
         }
       }
+    }
+
+    if (subscriptionOptions.filter) {
+      options.filter = subscriptionOptions.filter
     }
 
     return options

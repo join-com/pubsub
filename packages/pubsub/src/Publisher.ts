@@ -65,8 +65,8 @@ export class Publisher<T = unknown> {
     }
   }
 
-  public async publishMsg(data: T): Promise<void> {
-    await this.sendAvroMessage(data)
+  public async publishMsg(data: T, attributes?: Record<string, string>): Promise<void> {
+    await this.sendAvroMessage(data, attributes)
   }
 
   public async flush(): Promise<void> {
@@ -96,8 +96,8 @@ export class Publisher<T = unknown> {
     }
   }
 
-  private async sendAvroMessage(data: T): Promise<void> {
-    let currentMessageMetadata = this.avroMessageMetadata
+  private async sendAvroMessage(data: T, attributes?: Record<string, string>): Promise<void> {
+    let currentMessageMetadata = { ...this.avroMessageMetadata, ...attributes}
     if (this.optionArrayPaths && this.optionArrayPaths.length > 0) {
       const undefinedOrNullOptionalArrays = this.fieldsProcessor.findAndReplaceUndefinedOrNullOptionalArrays(
         data as Record<string, unknown>,
@@ -122,7 +122,7 @@ export class Publisher<T = unknown> {
 
     const buffer = Buffer.from(this.readerAvroType.toString(data))
     const messageId = await this.topic.publishMessage({ data: buffer, attributes: currentMessageMetadata })
-    this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, messageId })
+    this.logger?.info(`PubSub: Avro message sent for topic: ${this.topicName}:`, { data, attributes, messageId })
   }
 
   private prepareAvroMessageMetadata(schema: SchemaWithMetadata): Record<string, string> {

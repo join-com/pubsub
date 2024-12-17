@@ -171,7 +171,7 @@ describe('Subscriber', () => {
           topicName, subscriptionName,
           subscriptionOptions: {
             ...subscriptionOptions,
-            filter: '',
+            filter: 'attributes.testKey="newValue"',
           },
         }, clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, loggerMock)
@@ -181,7 +181,7 @@ describe('Subscriber', () => {
 
       expect(loggerMock.error).toHaveBeenCalledWith('PubSub: Failed to initialize subscriber subscription-name',
         new Error('PubSub: Subscriptions filters are immutable, they can\'t be changed, subscription: subscription-name, ' +
-          'currentFilter: attributes.testKey="currentValue", newFilter: undefined'))
+          'currentFilter: attributes.testKey="currentValue", newFilter: attributes.testKey="newValue"'))
       processAbortSpy.mockClear()
     })
 

@@ -5,7 +5,7 @@ import { Publisher } from './Publisher'
 export interface IPublisher<T> {
   topicName: string
   initialize: () => Promise<void>
-  publishMsg: (data: T, attributes: Record<string, string>) => Promise<void>
+  publishMsg: (data: T, attributes?: Record<string, string>) => Promise<void>
   flush: () => Promise<void>
 }
 

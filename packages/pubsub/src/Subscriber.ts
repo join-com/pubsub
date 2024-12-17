@@ -21,6 +21,10 @@ export interface IMessageInfo {
   receivedAt: Date
 }
 
+/**
+ * Subscription options
+ * Filter is immutable and can't be changed after subscription is created
+ */
 export interface ISubscriptionOptions {
   ackDeadline?: number
   allowExcessMessages?: boolean
@@ -224,9 +228,9 @@ export class Subscriber<T = unknown> {
       this.logger?.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
       const [existingSubscription] = await subscription.getMetadata()
-      if (existingSubscription.filter && options.filter && options.filter !== existingSubscription.filter) {
+      if (options.filter != existingSubscription.filter) {
         throw new Error(`PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
-          ` currentFilter: ${existingSubscription.filter}, newFilter: ${options.filter}`)
+          ` currentFilter: ${existingSubscription.filter || 'undefined'}, newFilter: ${options.filter || 'undefined'}`)
       }
       if (this.isMetadataChanged(existingSubscription, options)) {
         await subscription.setMetadata(options)

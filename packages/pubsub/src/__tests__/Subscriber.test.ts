@@ -74,6 +74,9 @@ describe('Subscriber', () => {
     iamTopicMock.setPolicy.mockReset()
     iamSubscriptionMock.setPolicy.mockReset()
     schemaClientMock.getSchema.mockReset()
+    loggerMock.info.mockReset()
+    loggerMock.warn.mockReset()
+    loggerMock.error.mockReset()
   })
 
   describe('initialize', () => {
@@ -180,6 +183,27 @@ describe('Subscriber', () => {
         new Error('PubSub: Subscriptions filters are immutable, they can\'t be changed, subscription: subscription-name, ' +
           'currentFilter: attributes.testKey="currentValue", newFilter: attributes.testKey="newValue"'))
       processAbortSpy.mockClear()
+    })
+
+    it('does not throw when deployed again without filter', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      // google cloud returns filter as empty string when no filter is set
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        filter: '',
+      }])
+
+      const subscriberWithFilter = new Subscriber({
+          topicName, subscriptionName,
+          subscriptionOptions: {
+            ...subscriptionOptions,
+          },
+        }, clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, loggerMock)
+
+      await subscriberWithFilter.initialize()
+
+      expect(loggerMock.error).not.toHaveBeenCalled()
     })
 
     it('updates metadata if backoff has changed', async () => {

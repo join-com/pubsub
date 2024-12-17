@@ -228,9 +228,9 @@ export class Subscriber<T = unknown> {
       this.logger?.info(`PubSub: Subscription ${subscriptionName} is created`)
     } else if (options) {
       const [existingSubscription] = await subscription.getMetadata()
-      if (options.filter != existingSubscription.filter) {
+      if ((options.filter || existingSubscription.filter) && options.filter != existingSubscription.filter) {
         throw new Error(`PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
-          ` currentFilter: ${existingSubscription.filter || 'undefined'}, newFilter: ${options.filter || 'undefined'}`)
+          ` currentFilter: ${existingSubscription.filter as string}, newFilter: ${options.filter as string}`)
       }
       if (this.isMetadataChanged(existingSubscription, options)) {
         await subscription.setMetadata(options)

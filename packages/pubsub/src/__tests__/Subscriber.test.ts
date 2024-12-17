@@ -2,6 +2,7 @@ import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
+import { ILogger } from '../ILogger'
 import { DateType } from '../logical-types/DateType'
 import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
 import {
@@ -34,7 +35,6 @@ const readerTypeWithArrays = Type.forSchema(SCHEMA_DEFINITION_READER_OPTIONAL_AR
 const typeWithPreserveNull = Type.forSchema(SCHEMA_DEFINITION_PRESERVE_NULL_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
 const flushPromises = () => new Promise(setImmediate)
 
-
 const subscriptionOptions: ISubscriptionOptions = {
   ackDeadline: 10,
   allowExcessMessages: true,
@@ -44,6 +44,12 @@ const subscriptionOptions: ISubscriptionOptions = {
   maxBackoffSeconds: 10,
   labels: { testKey: 'testValue'}
 }
+
+const loggerMock = jest.mocked<ILogger>({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+})
 
 describe('Subscriber', () => {
   let subscriber: Subscriber
@@ -123,6 +129,57 @@ describe('Subscriber', () => {
       })
 
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('creates subscription with filter', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([false])
+      const subscriberWithFilter = new Subscriber({
+          topicName, subscriptionName,
+          subscriptionOptions: {
+            ...subscriptionOptions,
+            filter: 'attributes.testKey="testValue"',
+          },
+        }, clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, new ConsoleLogger())
+
+      await subscriberWithFilter.initialize()
+
+      expect(subscriptionMock.create).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: subscriptionOptions.labels,
+        gaxOpts: createCallOptions,
+        filter: 'attributes.testKey="testValue"'
+      })
+    })
+
+    it('throws error if filter has changed', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      subscriptionMock.getMetadata.mockResolvedValue([{
+        filter: 'attributes.testKey="currentValue"',
+      }])
+
+      const subscriberWithFilter = new Subscriber({
+          topicName, subscriptionName,
+          subscriptionOptions: {
+            ...subscriptionOptions,
+            filter: 'attributes.testKey="newValue"',
+          },
+        }, clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient, undefined as unknown as SubscriberClient, loggerMock)
+      const processAbortSpy = jest.spyOn(process, 'abort').mockImplementation()
+
+      await subscriberWithFilter.initialize()
+
+      expect(loggerMock.error).toHaveBeenCalledWith('PubSub: Failed to initialize subscriber subscription-name',
+        new Error('PubSub: Subscriptions filters are immutable, they can\'t be changed, subscription: subscription-name, ' +
+          'currentFilter: attributes.testKey="currentValue", newFilter: attributes.testKey="newValue"'))
+      processAbortSpy.mockClear()
     })
 
     it('updates metadata if backoff has changed', async () => {
@@ -247,6 +304,8 @@ describe('Subscriber', () => {
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
     })
+
+
 
     describe('dead letter policy', () => {
       const deadLetterTopicName = 'subscription-name-unack'

@@ -19,7 +19,6 @@ const topic = 'topic-name'
 const topicMock = getTopicMock()
 const clientMock = getClientMock({ topicMock })
 const type = Type.forSchema(SCHEMA_DEFINITION_EXAMPLE as Schema, {logicalTypes: {'timestamp-micros': DateType}})
-const processAbortSpy = jest.spyOn(process, 'abort')
 const schemas = {writer: SCHEMA_DEFINITION_EXAMPLE, reader: SCHEMA_DEFINITION_EXAMPLE}
 const schemasWithArrays = {writer: SCHEMA_DEFINITION_WRITER_OPTIONAL_ARRAY_EXAMPLE,
   reader: SCHEMA_DEFINITION_READER_OPTIONAL_ARRAY_EXAMPLE}
@@ -45,7 +44,6 @@ describe('Publisher', () => {
     topicMock.publishMessage.mockReset()
     topicMock.getMetadata.mockReset()
     schemaMock.get.mockReset()
-    processAbortSpy.mockClear()
   })
 
   describe('initialize', () => {
@@ -94,6 +92,21 @@ describe('Publisher', () => {
       await publisher.publishMsg(message)
 
       expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+    })
+
+    it('publishes avro json encoded object with attributes', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+
+      await publisher.publishMsg(message, { 'testKey': 'testValue' })
+
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage, attributes: {
+          ...metadata,
+          'testKey': 'testValue',
+        },
+      })
     })
 
     it('publishes avro json with max allowed date value when date in micros overflows MAX_SAFE_INTEGER', async () => {

@@ -188,7 +188,7 @@ describe('Subscriber', () => {
     it('does not throw when deployed again without filter', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
-      // google cloud return filter as empty string when no filter is set
+      // google cloud returns filter as empty string when no filter is set
       subscriptionMock.getMetadata.mockResolvedValue([{
         filter: '',
       }])

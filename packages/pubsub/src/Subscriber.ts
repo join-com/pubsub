@@ -247,7 +247,11 @@ export class Subscriber<T = unknown> {
         )
       }
       if (this.isMetadataChanged(existingSubscription, options)) {
-        await subscription.setMetadata(options)
+        await subscription.setMetadata({
+          deadLetterPolicy: options.deadLetterPolicy,
+          retryPolicy: options.retryPolicy,
+          labels: options?.labels
+        })
         this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
       }
     }

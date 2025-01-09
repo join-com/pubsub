@@ -50,7 +50,7 @@ describe('FieldsProcessor', () => {
       expect(optionalArrays).toEqual(['entity.array'])
     })
 
-    it('finds and replaces undefined array on the second level inside arrays', () => {
+    it('replaces undefined array on the second level inside arrays, but do not save it for replacing back', () => {
       const data = {
         entities: [{
           'array': undefined
@@ -62,7 +62,7 @@ describe('FieldsProcessor', () => {
       expect(data.entities[0]).toBeDefined()
       expect(data.entities[0]?.array).toBeEmpty()
 
-      expect(optionalArrays).toEqual(['entities.array'])
+      expect(optionalArrays).toEqual([])
     })
 
     it('ignores undefined paths on the first two levels', () => {
@@ -77,7 +77,7 @@ describe('FieldsProcessor', () => {
 
       expect(data.entities[0]).toBeDefined()
       expect(data.entities[0]?.array).toBeEmpty()
-      expect(optionalArrays).toEqual(['entities.array'])
+      expect(optionalArrays).toEqual([])
     })
 
     it('finds and replaces undefined array on the third level', () => {
@@ -127,7 +127,7 @@ describe('FieldsProcessor', () => {
       expect(data.entity.array).toBeUndefined()
     })
 
-    it('sets second level field inside array to undefined', () => {
+    it('does not set second level field inside array to undefined', () => {
       const data = {
         'entities': [{
           'array': []
@@ -136,10 +136,10 @@ describe('FieldsProcessor', () => {
 
       fieldsProcessor.setEmptyArrayFieldsToUndefined(data, ['entities.array'])
       expect(data.entities[0]).toBeDefined()
-      expect(data.entities[0]?.array).toBeUndefined()
+      expect(data.entities[0]?.array).toBeEmpty()
     })
 
-    it('sets third level field inside array to undefined', () => {
+    it('does not set third level field inside array to undefined', () => {
       const data = {
         'topLevel': {
           'entities': [{
@@ -150,7 +150,27 @@ describe('FieldsProcessor', () => {
 
       fieldsProcessor.setEmptyArrayFieldsToUndefined(data, ['topLevel.entities.array'])
       expect(data.topLevel.entities[0]).toBeDefined()
-      expect(data.topLevel.entities[0]?.array).toBeUndefined()
+      expect(data.topLevel.entities[0]?.array).toBeEmpty()
+    })
+
+    it('skips setting field inside array to undefined', () => {
+      const data = {
+        screeningQuestions: [
+          {
+            type: 'TEXT',
+            options: []
+          },
+          {
+            type: 'SINGLE_CHOICE',
+            options: ['Option 1', 'Option 2'],
+          },
+        ],
+      }
+
+      fieldsProcessor.setEmptyArrayFieldsToUndefined(data, ['screeningQuestions.options'])
+      expect(data.screeningQuestions[0]).toBeDefined()
+      expect(data.screeningQuestions[0]?.options).toBeEmpty()
+      expect(data.screeningQuestions[1]?.options).toHaveLength(2)
     })
   })
 })

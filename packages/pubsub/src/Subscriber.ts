@@ -38,7 +38,7 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
-  labels?: ({ [k: string]: string } | null)
+  labels?: { [k: string]: string } | null
   filter?: string
 }
 
@@ -61,7 +61,7 @@ interface ISubscriptionDeadLetterPolicy {
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
-  labels?: ({ [k: string]: string } | null);
+  labels?: { [k: string]: string } | null
   filter?: string
 }
 
@@ -109,7 +109,9 @@ export class Subscriber<T = unknown> {
 
   public async initialize(): Promise<void> {
     try {
-      await this.initializeTopic(this.topicName, this.topic)
+      if (process.env['PUBSUB_SUBSCRIPTION_TOPIC_INIT'] === 'true') {
+        await this.initializeTopic(this.topicName, this.topic)
+      }
 
       await this.initializeDeadLetterTopic()
 
@@ -152,7 +154,9 @@ export class Subscriber<T = unknown> {
   private async parseData(message: Message): Promise<T> {
     let schemaId = message.attributes['googclient_schemarevisionid']
     if (!schemaId) {
-      this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Message does not have schema revision id`, { message })
+      this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Message does not have schema revision id`, {
+        message,
+      })
       schemaId = await this.schemaCache.getLatestSchemaRevisionId()
     }
 
@@ -178,7 +182,17 @@ export class Subscriber<T = unknown> {
     asyncCallback: (msg: IParsedMessage<T>, info: IMessageInfo) => Promise<void>,
   ): (message: Message) => void {
     const asyncMessageProcessor = async (message: Message) => {
-      const dataParsed = await this.parseData(message)
+      const dataParsed = await this.parseData(message).catch(e => {
+        this.logger?.error(`PubSub: Subscription: ${this.subscriptionName} Failed to parse message:`, e)
+        return undefined
+      })
+
+      // If message parsing failed, nack the message and skip processing
+      if (!dataParsed) {
+        message.nack()
+        return
+      }
+
       const messageParsed = Object.assign(message, { dataParsed })
       const info: IMessageInfo = {
         id: message.id,
@@ -229,11 +243,17 @@ export class Subscriber<T = unknown> {
     } else if (options) {
       const [existingSubscription] = await subscription.getMetadata()
       if ((options.filter || existingSubscription.filter) && options.filter != existingSubscription.filter) {
-        throw new Error(`PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
-          ` currentFilter: ${existingSubscription.filter as string}, newFilter: ${options.filter as string}`)
+        throw new Error(
+          `PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
+            ` currentFilter: ${existingSubscription.filter as string}, newFilter: ${options.filter as string}`,
+        )
       }
       if (this.isMetadataChanged(existingSubscription, options)) {
-        await subscription.setMetadata(options)
+        await subscription.setMetadata({
+          retryPolicy: options.retryPolicy,
+          deadLetterPolicy: options.deadLetterPolicy,
+          labels: options?.labels
+        })
         this.logger?.info(`PubSub: Subscription ${subscriptionName} metadata updated`)
       }
     }
@@ -335,20 +355,28 @@ export class Subscriber<T = unknown> {
   }
 
   private isMetadataChanged(existingSubscription: ISubscription, options: ISubscriptionInitializationOptions): boolean {
-    if (options.retryPolicy.minimumBackoff?.seconds &&
-      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds) {
+    if (
+      options.retryPolicy.minimumBackoff?.seconds &&
+      String(options.retryPolicy.minimumBackoff.seconds) !== existingSubscription.retryPolicy?.minimumBackoff?.seconds
+    ) {
       return true
     }
-    if (options.retryPolicy.maximumBackoff?.seconds &&
-      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds) {
+    if (
+      options.retryPolicy.maximumBackoff?.seconds &&
+      String(options.retryPolicy.maximumBackoff.seconds) !== existingSubscription.retryPolicy?.maximumBackoff?.seconds
+    ) {
       return true
     }
-    if (!!options.deadLetterPolicy?.maxDeliveryAttempts &&
-      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts) {
+    if (
+      !!options.deadLetterPolicy?.maxDeliveryAttempts &&
+      options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts
+    ) {
       return true
     }
-    if (!!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)
-      || options.labels == null && !!existingSubscription.labels && Object.keys(existingSubscription.labels).length !== 0) {
+    if (
+      (!!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)) ||
+      (options.labels == null && !!existingSubscription.labels && Object.keys(existingSubscription.labels).length !== 0)
+    ) {
       return true
     }
 

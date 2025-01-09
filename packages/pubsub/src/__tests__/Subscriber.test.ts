@@ -59,6 +59,7 @@ describe('Subscriber', () => {
 
   beforeEach(() => {
     process.env['GCLOUD_PROJECT'] = 'project'
+    process.env['PUBSUB_SUBSCRIPTION_TOPIC_INIT'] = undefined
     subscriber = new Subscriber(
       { topicName, subscriptionName, subscriptionOptions },
       clientMock as unknown as PubSub,
@@ -88,7 +89,8 @@ describe('Subscriber', () => {
   })
 
   describe('initialize', () => {
-    it('creates topic unless exists', async () => {
+    it('creates topic unless exists if PUBSUB_SUBSCRIPTION_TOPIC_INIT equals true', async () => {
+      process.env['PUBSUB_SUBSCRIPTION_TOPIC_INIT'] = 'true'
       topicMock.exists.mockResolvedValue([false])
       subscriptionMock.exists.mockResolvedValue([true])
       topicMock.getMetadata.mockResolvedValue([])
@@ -418,8 +420,8 @@ describe('Subscriber', () => {
 
           await subscriber.initialize()
 
-          expect(topicMock.create).toHaveBeenCalledTimes(2)
-          expect(clientMock.topic).toHaveBeenLastCalledWith(deadLetterTopicName)
+          expect(topicMock.create).toHaveBeenCalledTimes(1)
+          expect(clientMock.topic).toHaveBeenCalledWith(deadLetterTopicName)
         })
 
         it('adds publisher role to pubsub service account', async () => {
@@ -458,7 +460,7 @@ describe('Subscriber', () => {
 
           await optionlessSubscriber.initialize()
 
-          expect(topicMock.create).toHaveBeenCalledTimes(1)
+          expect(topicMock.create).not.toHaveBeenCalled()
           expect(clientMock.topic).toHaveBeenLastCalledWith(topicName)
           expect(iamTopicMock.setPolicy).not.toHaveBeenCalled()
         })

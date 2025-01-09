@@ -109,7 +109,9 @@ export class Subscriber<T = unknown> {
 
   public async initialize(): Promise<void> {
     try {
-      await this.initializeTopic(this.topicName, this.topic)
+      if (process.env['PUBSUB_SUBSCRIPTION_TOPIC_INIT'] === 'true') {
+        await this.initializeTopic(this.topicName, this.topic)
+      }
 
       await this.initializeDeadLetterTopic()
 

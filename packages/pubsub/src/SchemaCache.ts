@@ -74,7 +74,7 @@ export class SchemaCache {
       view: SchemaView.FULL
     })
     if (revisionsResponse[0].length == 0 || !revisionsResponse[0][0]) {
-      throw Error(`Can'\t find any schemas for the topic ${schemaPath}`)
+      throw new Error(`Can'\t find any schemas for the topic ${schemaPath}`)
     }
     const remoteSchema = revisionsResponse[0][0]
     const schemaRevisionId = remoteSchema.revisionId

@@ -128,6 +128,7 @@ describe('Subscriber', () => {
         },
         labels: subscriptionOptions.labels,
         gaxOpts: createCallOptions,
+        filter: '',
       })
 
       expect(topicMock.subscription).toHaveBeenCalledWith(subscriptionName, {
@@ -207,7 +208,7 @@ describe('Subscriber', () => {
         'PubSub: Failed to initialize subscriber subscription-name',
         new Error(
           "PubSub: Subscriptions filters are immutable, they can't be changed, subscription: subscription-name, " +
-            'currentFilter: attributes.testKey="currentValue", newFilter: attributes.testKey="newValue"',
+          'currentFilter: attributes.testKey="currentValue", newFilter: attributes.testKey="newValue"',
         ),
       )
       processAbortSpy.mockClear()
@@ -326,7 +327,7 @@ describe('Subscriber', () => {
       })
     })
 
-    it('updates labels if labels were not empty and now are set to null', async () => {
+    it('updates labels if labels were not empty and now are set to empty object', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
       subscriptionMock.getMetadata.mockResolvedValue([
@@ -338,7 +339,7 @@ describe('Subscriber', () => {
           labels: { testKey: 'testValue' },
         },
       ])
-      const optionsWithNullLabels = { ...subscriptionOptions, labels: null }
+      const optionsWithNullLabels = { ...subscriptionOptions, labels: {} }
       subscriber = new Subscriber(
         { topicName, subscriptionName, subscriptionOptions: optionsWithNullLabels },
         clientMock as unknown as PubSub,
@@ -356,11 +357,11 @@ describe('Subscriber', () => {
           minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
           maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
         },
-        labels: null,
+        labels: {},
       })
     })
 
-    it('does not update labels if labels were empty and now are set to null', async () => {
+    it('does not update labels if labels order in object changed', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
       subscriptionMock.getMetadata.mockResolvedValue([
@@ -369,10 +370,10 @@ describe('Subscriber', () => {
             minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
             maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
           },
-          labels: {},
+          labels: { testKey: 'testValue', testKey2: 'testValue2' },
         },
       ])
-      const optionsWithNullLabels = { ...subscriptionOptions, labels: null }
+      const optionsWithNullLabels = { ...subscriptionOptions, labels: { testKey2: 'testValue2', testKey: 'testValue' } }
       subscriber = new Subscriber(
         { topicName, subscriptionName, subscriptionOptions: optionsWithNullLabels },
         clientMock as unknown as PubSub,
@@ -385,6 +386,130 @@ describe('Subscriber', () => {
 
       expect(subscriptionMock.create).not.toHaveBeenCalled()
       expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('does not update metadata if dead letter policy did not change', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      const deadLetterPolicy = {
+        maxDeliveryAttempts: 123,
+        deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
+      }
+      subscriptionMock.getMetadata.mockResolvedValue([
+        {
+          retryPolicy: {
+            minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+            maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
+          },
+          labels: { testKey: 'testValue' },
+          deadLetterPolicy
+        },
+      ])
+      const optionsWithCopiedDeadLetterPolicy: ISubscriptionOptions = { ...subscriptionOptions,
+        maxDeliveryAttempts: 123,
+        gcloudProject: {
+          name: 'gcloudProjectName',
+          id: 123456789,
+        },
+      }
+      subscriber = new Subscriber(
+        { topicName, subscriptionName, subscriptionOptions: optionsWithCopiedDeadLetterPolicy },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient,
+        undefined as unknown as SubscriberClient,
+        new ConsoleLogger(),
+      )
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('updates metadata if dead letter policy changed', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      const deadLetterPolicy = {
+        maxDeliveryAttempts: 123,
+        deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
+      }
+      subscriptionMock.getMetadata.mockResolvedValue([
+        {
+          retryPolicy: {
+            minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+            maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
+          },
+          labels: { testKey: 'testValue' },
+          deadLetterPolicy
+        },
+      ])
+      const optionsWithCopiedDeadLetterPolicy: ISubscriptionOptions = { ...subscriptionOptions,
+        maxDeliveryAttempts: 10,
+        gcloudProject: {
+          name: 'gcloudProjectName',
+          id: 123456789,
+        },
+      }
+      subscriber = new Subscriber(
+        { topicName, subscriptionName, subscriptionOptions: optionsWithCopiedDeadLetterPolicy },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient,
+        undefined as unknown as SubscriberClient,
+        new ConsoleLogger(),
+      )
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: {
+          maxDeliveryAttempts: 10,
+          deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
+        },
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: { testKey: 'testValue' },
+      })
+    })
+
+    it('updates metadata if dead letter policy disabled', async () => {
+      topicMock.exists.mockResolvedValue([true])
+      subscriptionMock.exists.mockResolvedValue([true])
+      const deadLetterPolicy = {
+        maxDeliveryAttempts: 123,
+        deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
+      }
+      subscriptionMock.getMetadata.mockResolvedValue([
+        {
+          retryPolicy: {
+            minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+            maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
+          },
+          labels: { testKey: 'testValue' },
+          deadLetterPolicy
+        },
+      ])
+      subscriber = new Subscriber(
+        { topicName, subscriptionName, subscriptionOptions },
+        clientMock as unknown as PubSub,
+        schemaClientMock as unknown as SchemaServiceClient,
+        undefined as unknown as SubscriberClient,
+        new ConsoleLogger(),
+      )
+
+      await subscriber.initialize()
+
+      expect(subscriptionMock.create).not.toHaveBeenCalled()
+      expect(subscriptionMock.setMetadata).toHaveBeenCalledWith({
+        deadLetterPolicy: null,
+        retryPolicy: {
+          minimumBackoff: { seconds: subscriptionOptions.minBackoffSeconds },
+          maximumBackoff: { seconds: subscriptionOptions.maxBackoffSeconds },
+        },
+        labels: { testKey: 'testValue' },
+      })
     })
 
     describe('dead letter policy', () => {
@@ -525,6 +650,8 @@ describe('Subscriber', () => {
             deadLetterPolicy: null,
             retryPolicy: {},
             gaxOpts: createCallOptions,
+            filter: '',
+            labels: {},
           })
           expect(topicMock.subscription).not.toHaveBeenCalledWith(deadLetterSubscriptionName, expect.anything())
           expect(iamSubscriptionMock.setPolicy).not.toHaveBeenCalled()
@@ -546,6 +673,7 @@ describe('Subscriber', () => {
             },
             gaxOpts: createCallOptions,
             labels: subscriptionOptions.labels,
+            filter: ''
           })
         })
       })

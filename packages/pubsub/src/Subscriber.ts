@@ -38,7 +38,7 @@ export interface ISubscriptionOptions {
     name: string
     id: number
   }
-  labels?: { [k: string]: string } | null
+  labels?: { [k: string]: string }
   filter?: string
 }
 
@@ -61,8 +61,8 @@ interface ISubscriptionDeadLetterPolicy {
 interface ISubscriptionInitializationOptions {
   deadLetterPolicy: ISubscriptionDeadLetterPolicy | null
   retryPolicy: ISubscriptionRetryPolicy
-  labels?: { [k: string]: string } | null
-  filter?: string
+  labels: { [k: string]: string }
+  filter: string
 }
 
 export class Subscriber<T = unknown> {
@@ -245,7 +245,7 @@ export class Subscriber<T = unknown> {
       if ((options.filter || existingSubscription.filter) && options.filter != existingSubscription.filter) {
         throw new Error(
           `PubSub: Subscriptions filters are immutable, they can't be changed, subscription: ${subscriptionName},` +
-            ` currentFilter: ${existingSubscription.filter as string}, newFilter: ${options.filter as string}`,
+            ` currentFilter: ${existingSubscription.filter as string}, newFilter: ${options.filter}`,
         )
       }
       if (this.isMetadataChanged(existingSubscription, options)) {
@@ -299,6 +299,8 @@ export class Subscriber<T = unknown> {
     const options: ISubscriptionInitializationOptions = {
       deadLetterPolicy: null,
       retryPolicy: {},
+      labels: {},
+      filter: ''
     }
 
     const { subscriptionOptions } = this.subscriberOptions
@@ -367,19 +369,33 @@ export class Subscriber<T = unknown> {
     ) {
       return true
     }
+    if (!options.deadLetterPolicy && existingSubscription.deadLetterPolicy) {
+      return true
+    }
     if (
       !!options.deadLetterPolicy?.maxDeliveryAttempts &&
       options.deadLetterPolicy.maxDeliveryAttempts !== existingSubscription.deadLetterPolicy?.maxDeliveryAttempts
     ) {
       return true
     }
-    if (
-      (!!options.labels && JSON.stringify(existingSubscription.labels) !== JSON.stringify(options.labels)) ||
-      (options.labels == null && !!existingSubscription.labels && Object.keys(existingSubscription.labels).length !== 0)
-    ) {
+    // pubsub always returns {} for labels if they are not set
+    if (existingSubscription.labels && this.areLabelsChanged(existingSubscription.labels, options.labels)) {
       return true
     }
 
     return false
+  }
+
+  private areLabelsChanged(existingLabels: { [k: string]: string },
+                           newLabels: { [k: string]: string }): boolean {
+    if (Object.keys(existingLabels).length !== Object.keys(newLabels).length) {
+      return true;
+    }
+    for (const key in newLabels) {
+      if (existingLabels[key] !== newLabels[key]) {
+        return true;
+      }
+    }
+    return false;
   }
 }

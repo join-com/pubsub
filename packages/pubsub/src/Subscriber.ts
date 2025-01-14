@@ -208,9 +208,6 @@ export class Subscriber<T = unknown> {
 
     return (message: Message) => {
       asyncMessageProcessor(message)
-        .then(_ => {
-          return
-        })
         .catch(e => {
           throw e
         })

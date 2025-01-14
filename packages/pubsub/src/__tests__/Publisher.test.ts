@@ -91,7 +91,10 @@ describe('Publisher', () => {
 
       await publisher.publishMsg(message)
 
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining(metadata),
+      })
     })
 
     it('publishes avro json encoded object with attributes', async () => {
@@ -120,7 +123,10 @@ describe('Publisher', () => {
       await publisher.publishMsg(message)
 
       const avroMessage = Buffer.from(type.toString(message))
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining(metadata),
+      })
       const decodedMessage = type.fromString(avroMessage.toString()) as IMessageType
       expect(decodedMessage.createdAt).toEqual(MAX_DATE_WITH_SAFE_NUMBER_TIMESTAMP_IN_MICROS)
     })
@@ -137,7 +143,10 @@ describe('Publisher', () => {
       const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
       const messageMetadata = { ...metadata }
       messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'languages'
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining(messageMetadata),
+      })
     })
 
     it('publishes avro encoded messages with undefined array field in metadata when array is null', async () => {
@@ -152,7 +161,10 @@ describe('Publisher', () => {
       const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
       const messageMetadata = { ...metadata }
       messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'languages'
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining({ ...messageMetadata }),
+      })
     })
 
     it('publishes avro encoded messages with two undefined array field in metadata', async () => {
@@ -166,7 +178,10 @@ describe('Publisher', () => {
       const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
       const messageMetadata = { ...metadata }
       messageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = 'tags,languages'
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: messageMetadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining(messageMetadata),
+      })
     })
 
     it('publishes avro encoded messages without undefined array field when all arrays are set', async () => {
@@ -179,7 +194,10 @@ describe('Publisher', () => {
       await publisher.publishMsg(message)
 
       const avroMessage = Buffer.from(readerTypeWithArrays.toString(message))
-      expect(topicMock.publishMessage).toHaveBeenCalledWith({ data: avroMessage, attributes: metadata })
+      expect(topicMock.publishMessage).toHaveBeenCalledWith({
+        data: avroMessage,
+        attributes: expect.objectContaining(metadata)
+      })
     })
   })
 

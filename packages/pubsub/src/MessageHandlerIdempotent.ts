@@ -39,8 +39,10 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
       const idempotencyKey = this.getIdempotencyKey(msg.dataParsed, info)
       if (idempotencyKey) {
         const alreadyProcessed = await this.idempotencyStorage.exists(idempotencyKey)
-          .catch(e => this.subscriber.logger?.info(`Error checking idempotency key: ${idempotencyKey}`, e))
-
+          .catch(e => {
+            this.subscriber.logger?.info(`Error checking idempotency key: ${idempotencyKey}`, e)
+            return false
+          })
         if (alreadyProcessed) {
           msg.ack()
           return

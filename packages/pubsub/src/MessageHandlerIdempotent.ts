@@ -2,21 +2,34 @@ import { JOIN_IDEMPOTENCY_KEY } from './Publisher'
 import { IMessageInfo, IParsedMessage } from './Subscriber'
 import { ISubscriber } from './SubscriberFactory'
 
+export abstract class IdempotencyStorage {
+  public abstract exists(key: string): Promise<boolean>
+
+  public abstract save(key: string): Promise<void>
+}
+
 export abstract class MessageHandlerIdempotent<T = unknown> {
-  protected constructor(private readonly subscriber: ISubscriber<T>) {
+  protected constructor(
+    private readonly subscriber: ISubscriber<T>,
+    private readonly idempotencyStorage: IdempotencyStorage,
+    private readonly getIdempotencyKey: (parsedMessage: T, info: IMessageInfo) => string | undefined =
+      (_: T, info: IMessageInfo) => {
+        return info.attributes[JOIN_IDEMPOTENCY_KEY]
+      }) {
   }
 
   protected abstract handle(event: T, info: IMessageInfo): Promise<void>
-
-  protected abstract existsInStore(idempotencyKey: string): Promise<boolean>
-
-  protected abstract saveInStore(key: string): Promise<void>
 
   public start(): void {
     this.subscriber.start(async (msg: IParsedMessage<T>, info: IMessageInfo) => {
       const idempotencyKey = this.getIdempotencyKey(msg.dataParsed, info)
       if (idempotencyKey) {
-        const processed = await this.existsInStore(idempotencyKey)
+        let processed = false
+        try {
+          processed = await this.idempotencyStorage.exists(idempotencyKey)
+        } catch (e) {
+          this.subscriber.logger?.info(`Error checking idempotency key: ${idempotencyKey}`, e)
+        }
         if (processed) {
           msg.ack()
           return
@@ -24,10 +37,8 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
       }
 
       await this.handle(msg.dataParsed, info)
-      msg.ack()
-
       if (idempotencyKey) {
-        this.saveInStore(idempotencyKey)
+        this.idempotencyStorage.save(idempotencyKey)
           .then(_ => {
             return
           })
@@ -35,6 +46,7 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
             throw e
           })
       }
+      msg.ack()
     })
   }
 
@@ -44,9 +56,5 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
 
   public async stop(): Promise<void> {
     await this.subscriber.stop()
-  }
-
-  protected getIdempotencyKey(_: T, info: IMessageInfo): string | undefined {
-    return info.attributes[JOIN_IDEMPOTENCY_KEY]
   }
 }

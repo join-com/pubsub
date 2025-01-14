@@ -87,7 +87,7 @@ export class Subscriber<T = unknown> {
     pubSubClient: PubSub,
     private readonly schemaServiceClient: SchemaServiceClient,
     private readonly subscriberClient: SubscriberClient,
-    private readonly logger?: ILogger,
+    public readonly logger?: ILogger,
   ) {
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 

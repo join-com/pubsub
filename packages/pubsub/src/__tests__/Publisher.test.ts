@@ -105,6 +105,7 @@ describe('Publisher', () => {
         data: avroMessage, attributes: {
           ...metadata,
           'testKey': 'testValue',
+          'join_idempotency_key': expect.any(String),
         },
       })
     })

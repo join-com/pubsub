@@ -1,13 +1,33 @@
 import { JOIN_IDEMPOTENCY_KEY } from './Publisher'
+import { IRedisClient } from './redis-types/IRedisClient'
 import { IMessageInfo, IParsedMessage } from './Subscriber'
 import { ISubscriber } from './SubscriberFactory'
 
 type GetIdempotencyKeyFunction<T> = (msg: T, info: IMessageInfo) => string | undefined
 
 export abstract class IdempotencyStorage {
+
   public abstract exists(key: string): Promise<boolean>
 
   public abstract save(key: string): Promise<void>
+}
+
+export class RedisIdempotencyStorage implements IdempotencyStorage {
+  constructor(private readonly redisClient: IRedisClient,
+              private readonly redisDefaultTtl: number) {}
+
+  public async exists(key: string): Promise<boolean> {
+    const value = await this.redisClient.get(key)
+    if (value.success) {
+      return !!value.get()
+    } else {
+      return false
+    }
+  }
+
+  public async save(key: string): Promise<void> {
+    await this.redisClient.setex(key, this.redisDefaultTtl, Buffer.from(new Date()))
+  }
 }
 
 /**

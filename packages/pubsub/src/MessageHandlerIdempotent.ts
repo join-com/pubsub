@@ -6,7 +6,6 @@ import { ISubscriber } from './SubscriberFactory'
 type GetIdempotencyKeyFunction<T> = (msg: T, info: IMessageInfo) => string | undefined
 
 export abstract class IdempotencyStorage {
-
   public abstract exists(key: string): Promise<boolean>
 
   public abstract save(key: string): Promise<void>
@@ -60,7 +59,7 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
       if (idempotencyKey) {
         const alreadyProcessed = await this.idempotencyStorage.exists(idempotencyKey)
           .catch(e => {
-            this.subscriber.logger?.info(`Error checking idempotency key: ${idempotencyKey}`, e)
+            this.subscriber.logger?.info(`Error checking idempotency key existence: ${idempotencyKey}`, e)
             return false
           })
         if (alreadyProcessed) {

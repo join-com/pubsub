@@ -44,6 +44,8 @@ export abstract class IdempotentMessageHandler<T = unknown> {
    * @param getIdempotencyKey value from message or attributes, by default uses join_idempotency_key, but can be overridden
    * @protected
    */
+  private noIdempotencyKeyErrorShown = false
+  
   protected constructor(
     private readonly subscriber: ISubscriber<T>,
     private readonly idempotencyStorage: IIdempotencyStorage,
@@ -57,7 +59,7 @@ export abstract class IdempotentMessageHandler<T = unknown> {
 
   public start(): void {
     this.subscriber.start(async (msg: IParsedMessage<T>, info: IMessageInfo) => {
-      const idempotencyKey = this.getIdempotencyKey(msg.dataParsed, info)
+      const idempotencyKey = this.getIdempotencyKeyWithLog(msg.dataParsed, info)
       if (idempotencyKey) {
         const alreadyProcessed = await this.idempotencyStorage.exists(idempotencyKey)
           .catch(e => {
@@ -87,5 +89,19 @@ export abstract class IdempotentMessageHandler<T = unknown> {
 
   public async stop(): Promise<void> {
     await this.subscriber.stop()
+  }
+
+  /**
+   * Logging is added to have some notification in logs if idempotency key is not provided, and 
+   * idempotent handler just works as usual handler, but to not spam with every message we log it once
+   */
+  private getIdempotencyKeyWithLog(msg: T, info: IMessageInfo): string | undefined {
+    const idempotencyKey = this.getIdempotencyKey(msg, info)
+    if (!idempotencyKey && !this.noIdempotencyKeyErrorShown) {
+      this.subscriber.logger?.error('First message received without idempotency key in idempotent handler, ' +
+        'possibly publisher pubsub version bump or idempotency key set is needed, or old messages are processed')
+      this.noIdempotencyKeyErrorShown = true
+    }
+    return idempotencyKey
   }
 }

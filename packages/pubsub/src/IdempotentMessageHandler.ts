@@ -5,13 +5,13 @@ import { ISubscriber } from './SubscriberFactory'
 
 type GetIdempotencyKeyFunction<T> = (msg: T, info: IMessageInfo) => string | undefined
 
-export abstract class IdempotencyStorage {
-  public abstract exists(key: string): Promise<boolean>
+export interface IIdempotencyStorage {
+  exists(key: string): Promise<boolean>
 
-  public abstract save(key: string): Promise<void>
+  save(key: string): Promise<void>
 }
 
-export class RedisIdempotencyStorage implements IdempotencyStorage {
+export class RedisIdempotencyStorage implements IIdempotencyStorage {
   constructor(private readonly redisClient: IRedisClient,
               private readonly redisDefaultTtl: number) {}
 
@@ -25,7 +25,8 @@ export class RedisIdempotencyStorage implements IdempotencyStorage {
   }
 
   public async save(key: string): Promise<void> {
-    await this.redisClient.setex(key, this.redisDefaultTtl, Buffer.from(new Date()))
+    const value = Buffer.from(new Date().toISOString())
+    await this.redisClient.setex(key, this.redisDefaultTtl, value)
   }
 }
 
@@ -34,7 +35,7 @@ export class RedisIdempotencyStorage implements IdempotencyStorage {
  * Will check if message was already processed by checking idempotency key in the storage, and will skip it if it was.
  * After the message is processed, stores message in the idempotency storage
  */
-export abstract class MessageHandlerIdempotent<T = unknown> {
+export abstract class IdempotentMessageHandler<T = unknown> {
   /**
    *
    * @param subscriber subscriber to listen to
@@ -44,7 +45,7 @@ export abstract class MessageHandlerIdempotent<T = unknown> {
    */
   protected constructor(
     private readonly subscriber: ISubscriber<T>,
-    private readonly idempotencyStorage: IdempotencyStorage,
+    private readonly idempotencyStorage: IIdempotencyStorage,
     private readonly getIdempotencyKey: GetIdempotencyKeyFunction<T> =
       (_: T, info: IMessageInfo) => {
         return info.attributes[JOIN_IDEMPOTENCY_KEY]

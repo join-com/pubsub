@@ -34,6 +34,7 @@ export class RedisIdempotencyStorage implements IIdempotencyStorage {
  * Idempotent message handler, requires idempotency storage to be provided.
  * Will check if message was already processed by checking idempotency key in the storage, and will skip it if it was.
  * After the message is processed, stores message in the idempotency storage
+ * If no idempotency key is provided, message is processed without idempotency check
  */
 export abstract class IdempotentMessageHandler<T = unknown> {
   /**

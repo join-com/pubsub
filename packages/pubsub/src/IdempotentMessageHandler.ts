@@ -49,7 +49,7 @@ export abstract class IdempotentMessageHandler<T = unknown> {
     private readonly idempotencyStorage: IIdempotencyStorage,
     private readonly getIdempotencyKey: GetIdempotencyKeyFunction<T> =
       (_: T, info: IMessageInfo) => {
-        return info.attributes[JOIN_IDEMPOTENCY_KEY]
+        return info?.attributes[JOIN_IDEMPOTENCY_KEY]
       }) {
   }
 

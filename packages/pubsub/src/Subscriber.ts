@@ -268,7 +268,11 @@ export class Subscriber<T = unknown> {
 
   private async initializeDeadLetterSubscription() {
     if (this.deadLetterSubscriptionName && this.deadLetterSubscription) {
-      await this.initializeSubscription(this.deadLetterSubscriptionName, this.deadLetterSubscription)
+      const options = this.createEmptyOptions()
+      if (this.subscriberOptions.subscriptionOptions?.labels) {
+        options.labels = this.subscriberOptions.subscriptionOptions.labels
+      }
+      await this.initializeSubscription(this.deadLetterSubscriptionName, this.deadLetterSubscription, options)
       await this.addPubsubServiceAccountRole(this.subscription.iam, 'roles/pubsub.subscriber')
     }
   }
@@ -296,12 +300,7 @@ export class Subscriber<T = unknown> {
   }
 
   private getInitializationOptions(): ISubscriptionInitializationOptions {
-    const options: ISubscriptionInitializationOptions = {
-      deadLetterPolicy: null,
-      retryPolicy: {},
-      labels: {},
-      filter: ''
-    }
+    const options: ISubscriptionInitializationOptions = this.createEmptyOptions()
 
     const { subscriptionOptions } = this.subscriberOptions
     if (!subscriptionOptions) {
@@ -397,5 +396,14 @@ export class Subscriber<T = unknown> {
       }
     }
     return false;
+  }
+
+  private createEmptyOptions(): ISubscriptionInitializationOptions {
+    return {
+      deadLetterPolicy: null,
+      retryPolicy: {},
+      labels: {},
+      filter: '',
+    }
   }
 }

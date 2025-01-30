@@ -224,21 +224,7 @@ describe('Subscriber', () => {
         },
       ])
 
-      const subscriberWithFilter = new Subscriber(
-        {
-          topicName,
-          subscriptionName,
-          subscriptionOptions: {
-            ...subscriptionOptions,
-          },
-        },
-        clientMock as unknown as PubSub,
-        schemaClientMock as unknown as SchemaServiceClient,
-        undefined as unknown as SubscriberClient,
-        loggerMock,
-      )
-
-      await subscriberWithFilter.initialize()
+      await subscriber.initialize()
 
       expect(loggerMock.error).not.toHaveBeenCalled()
     })
@@ -391,21 +377,25 @@ describe('Subscriber', () => {
     it('does not update metadata if dead letter policy did not change', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
-      const deadLetterPolicy = {
+      const returnedFromGcloudDeadLetterPolicy = {
         maxDeliveryAttempts: 123,
         deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
       }
-      subscriptionMock.getMetadata.mockResolvedValue([
-        {
-          retryPolicy: {
-            minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
-            maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
-          },
-          labels: { testKey: 'testValue' },
-          deadLetterPolicy
+      const topicSubscriptionMetadata = {
+        retryPolicy: {
+          minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+          maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
         },
-      ])
-      const optionsWithCopiedDeadLetterPolicy: ISubscriptionOptions = { ...subscriptionOptions,
+        labels: { testKey: 'testValue' },
+        deadLetterPolicy: returnedFromGcloudDeadLetterPolicy,
+      }
+      subscriptionMock.getMetadata.mockResolvedValueOnce([topicSubscriptionMetadata])
+      const deadLetterTopicSubscriptionMetadata = {
+        labels: { testKey: 'testValue' },
+      }
+      subscriptionMock.getMetadata.mockResolvedValueOnce([deadLetterTopicSubscriptionMetadata])
+      const optionsWithSameDeadLetterPolicy: ISubscriptionOptions = {
+        ...subscriptionOptions,
         maxDeliveryAttempts: 123,
         gcloudProject: {
           name: 'gcloudProjectName',
@@ -413,7 +403,7 @@ describe('Subscriber', () => {
         },
       }
       subscriber = new Subscriber(
-        { topicName, subscriptionName, subscriptionOptions: optionsWithCopiedDeadLetterPolicy },
+        { topicName, subscriptionName, subscriptionOptions: optionsWithSameDeadLetterPolicy },
         clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient,
         undefined as unknown as SubscriberClient,
@@ -429,7 +419,7 @@ describe('Subscriber', () => {
     it('updates metadata if dead letter policy changed', async () => {
       topicMock.exists.mockResolvedValue([true])
       subscriptionMock.exists.mockResolvedValue([true])
-      const deadLetterPolicy = {
+      const returnedFromGcloudDeadLetterPolicy = {
         maxDeliveryAttempts: 123,
         deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
       }
@@ -440,10 +430,10 @@ describe('Subscriber', () => {
             maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
           },
           labels: { testKey: 'testValue' },
-          deadLetterPolicy
+          deadLetterPolicy: returnedFromGcloudDeadLetterPolicy
         },
       ])
-      const optionsWithCopiedDeadLetterPolicy: ISubscriptionOptions = { ...subscriptionOptions,
+      const optionsWithChangedDeadLetterPolicy: ISubscriptionOptions = { ...subscriptionOptions,
         maxDeliveryAttempts: 10,
         gcloudProject: {
           name: 'gcloudProjectName',
@@ -451,7 +441,7 @@ describe('Subscriber', () => {
         },
       }
       subscriber = new Subscriber(
-        { topicName, subscriptionName, subscriptionOptions: optionsWithCopiedDeadLetterPolicy },
+        { topicName, subscriptionName, subscriptionOptions: optionsWithChangedDeadLetterPolicy },
         clientMock as unknown as PubSub,
         schemaClientMock as unknown as SchemaServiceClient,
         undefined as unknown as SubscriberClient,
@@ -603,7 +593,41 @@ describe('Subscriber', () => {
 
           expect(subscriptionMock.create).toHaveBeenCalledTimes(2)
           expect(subscriptionMock.create).toHaveBeenLastCalledWith({
+            deadLetterPolicy: null,
+            retryPolicy: {},
+            labels: { testKey: 'testValue' },
+            filter: '',
             gaxOpts: createCallOptions,
+          })
+          expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
+        })
+
+        it('updates labels on dead letter subscription if changed', async () => {
+          subscriptionMock.exists.mockResolvedValue([true])
+          const deadLetterPolicy = {
+            maxDeliveryAttempts: 123,
+            deadLetterTopic: 'projects/gcloudProjectName/topics/subscription-name-unack',
+          }
+          const topicSubscriptionMetadata = {
+            retryPolicy: {
+              minimumBackoff: { seconds: String(subscriptionOptions.minBackoffSeconds) },
+              maximumBackoff: { seconds: String(subscriptionOptions.maxBackoffSeconds) },
+            },
+            labels: { testKey: 'testValue' },
+            deadLetterPolicy
+          }
+          subscriptionMock.getMetadata.mockResolvedValueOnce([topicSubscriptionMetadata])
+          const deadLetterTopicSubscriptionMetadata = {
+            labels: { },
+          }
+          subscriptionMock.getMetadata.mockResolvedValueOnce([deadLetterTopicSubscriptionMetadata])
+
+          await subscriber.initialize()
+
+          expect(subscriptionMock.setMetadata).toHaveBeenLastCalledWith({
+            deadLetterPolicy: null,
+            retryPolicy: {},
+            labels: { testKey: 'testValue' },
           })
           expect(topicMock.subscription).toHaveBeenLastCalledWith(deadLetterSubscriptionName)
         })

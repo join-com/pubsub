@@ -19,6 +19,7 @@ export interface IParsedMessage<T = unknown> {
 export interface IMessageInfo {
   id: string
   receivedAt: Date
+  attributes: { [k: string]: string }
 }
 
 /**
@@ -86,7 +87,7 @@ export class Subscriber<T = unknown> {
     pubSubClient: PubSub,
     private readonly schemaServiceClient: SchemaServiceClient,
     private readonly subscriberClient: SubscriberClient,
-    private readonly logger?: ILogger,
+    public readonly logger?: ILogger,
   ) {
     const { topicName, subscriptionName, subscriptionOptions } = subscriberOptions
 
@@ -197,6 +198,7 @@ export class Subscriber<T = unknown> {
       const info: IMessageInfo = {
         id: message.id,
         receivedAt: new Date(message.received),
+        attributes: message.attributes,
       }
       asyncCallback(messageParsed, info).catch(e => {
         message.nack()
@@ -206,9 +208,6 @@ export class Subscriber<T = unknown> {
 
     return (message: Message) => {
       asyncMessageProcessor(message)
-        .then(_ => {
-          return
-        })
         .catch(e => {
           throw e
         })

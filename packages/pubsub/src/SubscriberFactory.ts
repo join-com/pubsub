@@ -17,6 +17,7 @@ export interface ISubscriber<T> {
   initialize: () => Promise<void>
   start: (asyncCallback: (msg: IParsedMessage<T>, info: IMessageInfo) => Promise<void>) => void
   stop: () => Promise<void>
+  logger?: ILogger
 }
 
 export class SubscriberFactory<T> {

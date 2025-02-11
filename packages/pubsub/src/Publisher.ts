@@ -24,6 +24,7 @@ interface IMessageMetadata {
 type SchemaWithMetadata = Schema & IMessageMetadata
 export const JOIN_PRESERVE_NULL = 'join_preserve_null'
 export const JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS = 'join_undefined_or_null_optional_arrays'
+export const JOIN_IDEMPOTENCY_KEY = 'join_idempotency_key'
 
 export class Publisher<T = unknown> {
   private readonly topic: Topic
@@ -107,6 +108,9 @@ export class Publisher<T = unknown> {
         currentMessageMetadata = { ...currentMessageMetadata }
         currentMessageMetadata[JOIN_UNDEFINED_OR_NULL_OPTIONAL_ARRAYS] = undefinedOrNullOptionalArrays.join(',')
       }
+    }
+    if (!currentMessageMetadata[JOIN_IDEMPOTENCY_KEY]) {
+      currentMessageMetadata[JOIN_IDEMPOTENCY_KEY] = crypto.randomUUID()
     }
     if (!this.writerAvroType.isValid(data)) {
       this.logger?.error(

@@ -28,7 +28,7 @@
     "prepublishOnly": "yarn lint && yarn build"
   },
   "dependencies": {
-    "@google-cloud/pubsub": "^4.9.0",
+    "@google-cloud/pubsub": "^4.11.0",
     "avsc": "^5.7.7"
   },
   "devDependencies": {

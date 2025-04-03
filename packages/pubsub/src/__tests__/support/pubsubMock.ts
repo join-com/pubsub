@@ -110,6 +110,12 @@ export const getMessageMock = (buffer: Buffer): IMessageMock => {
   }
 }
 
+export const loggerMock = jest.mocked<ILogger>({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+})
+
 export class ConsoleLogger implements ILogger {
   public error(message: string, payload: unknown | undefined): void {
     // eslint-disable-next-line no-console

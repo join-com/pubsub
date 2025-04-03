@@ -2,7 +2,6 @@ import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient, SubscriberClient } from '@google-cloud/pubsub/build/src/v1'
 import { Schema, Type } from 'avsc'
 import { createCallOptions } from '../createCallOptions'
-import { ILogger } from '../ILogger'
 import { DateType } from '../logical-types/DateType'
 import { IParsedMessage, ISubscriptionOptions, Subscriber } from '../Subscriber'
 import {
@@ -17,6 +16,7 @@ import {
   getMessageMock,
   getSubscriptionMock,
   getTopicMock,
+  loggerMock,
   schemaServiceClientMock,
 } from './support/pubsubMock'
 
@@ -47,12 +47,6 @@ const subscriptionOptions: ISubscriptionOptions = {
   maxBackoffSeconds: 10,
   labels: { testKey: 'testValue' },
 }
-
-const loggerMock = jest.mocked<ILogger>({
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-})
 
 describe('Subscriber', () => {
   let subscriber: Subscriber

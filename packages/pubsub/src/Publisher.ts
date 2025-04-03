@@ -116,8 +116,7 @@ export class Publisher<T = unknown> {
 
     if (!this.writerAvroType.isValid(data, { errorHook: path => invalidPaths.push(path.join('.')) })) {
       this.logger?.error(
-        `[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct ' +
-        'and payload can be encoded with it`,
+        `[${this.topicName}] Invalid payload for the specified writer schema, please check that the schema is correct and payload can be encoded with it`,
         { payload: data, schemaMetadata: currentMessageMetadata, invalidPaths },
       )
       throw new Error(`[${this.topicName}] Can't encode the avro message for the topic`)

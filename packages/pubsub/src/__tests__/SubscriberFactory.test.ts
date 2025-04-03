@@ -1,6 +1,6 @@
-import { ILogger } from '../ILogger'
 import { Subscriber } from '../Subscriber'
 import { SubscriberFactory } from '../SubscriberFactory'
+import { loggerMock } from './support/pubsubMock'
 
 jest.mock('../Subscriber')
 
@@ -9,12 +9,6 @@ const SubscriberMock = jest.mocked(Subscriber)
 interface IEvents {
   topic: { id: number }
 }
-
-const loggerMock = jest.mocked<ILogger>({
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-})
 
 describe('SubscriberFactory', () => {
   let subscriberFactory: SubscriberFactory<IEvents>

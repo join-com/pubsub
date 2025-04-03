@@ -10,10 +10,9 @@ import {
 import {
   ConsoleLogger,
   getClientMock,
-  getTopicMock, IMessageType,
+  getTopicMock, IMessageType, loggerMock,
   schemaMock,
 } from './support/pubsubMock'
-
 
 const topic = 'topic-name'
 const topicMock = getTopicMock()
@@ -198,6 +197,22 @@ describe('Publisher', () => {
         data: avroMessage,
         attributes: expect.objectContaining(metadata)
       })
+    })
+
+    it('logs invalid paths when payload is not correct', async () => {
+      publisher = new Publisher(topic, clientMock as unknown as PubSub, schemas, loggerMock)
+      topicMock.exists.mockResolvedValue([true])
+      topicMock.getMetadata.mockResolvedValue([{ 'schemaSettings': { 'schema': 'mock-schema' } }])
+      await publisher.initialize()
+      const message = { second: 'some' }
+
+      await expect(publisher.publishMsg(message)).toReject()
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        '[topic-name] Invalid payload for the specified writer schema, please check that the schema is correct and payload can be encoded with it',
+        expect.objectContaining({
+          invalidPaths: [ 'first', 'createdAt' ],
+        })
+      )
     })
   })
 

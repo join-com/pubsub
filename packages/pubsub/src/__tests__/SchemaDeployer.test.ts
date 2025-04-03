@@ -1,6 +1,7 @@
 import { PubSub } from '@google-cloud/pubsub'
 import { SchemaServiceClient } from '@google-cloud/pubsub/build/src/v1'
 import { MAX_REVISIONS_IN_GCLOUD, SCHEMA_NAME_SUFFIX, SchemaDeployer } from '../SchemaDeployer'
+import { loggerMock } from './support/pubsubMock'
 
 const processApplicationStateStringSchema = '{"type":"record","name":"ProcessApplicationState","fields":[{"name":"applicationId","type":["null","int"],"default":null}],"Event":"data-cmd-process-application-state","SchemaType":"READER","AvdlSchemaVersion":"4adb1df1c9243e24b937ddd165abf7572d7e2491","AvdlSchemaGitRemoteOriginUrl":"git@github.com:join-com/data.git","AvdlSchemaPathInGitRepo":"schemas/avro/commands/commands.avdl","GeneratorVersion":"387a0b3f2c890dc67f99085b7c94ff4bdc9cc967","GeneratorGitRemoteOriginUrl":"https://github.com/join-com/avro-join"}'
 const processApplicationStateReaderSchema = {'reader':{'type':'record','name':'ProcessApplicationState','fields':[{'name':'applicationId','type':['null','int'],'default':null}],'Event':'data-cmd-process-application-state','SchemaType':'READER','AvdlSchemaVersion':'4adb1df1c9243e24b937ddd165abf7572d7e2491','AvdlSchemaGitRemoteOriginUrl':'git@github.com:join-com/data.git','AvdlSchemaPathInGitRepo':'schemas/avro/commands/commands.avdl','GeneratorVersion':'387a0b3f2c890dc67f99085b7c94ff4bdc9cc967','GeneratorGitRemoteOriginUrl':'https://github.com/join-com/avro-join'}}
@@ -11,12 +12,6 @@ const processApplicationStateGCloudSchema = {
     type: 'AVRO',
     definition: processApplicationStateStringSchema
 }
-
-const getLoggerMock = () => ({
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-})
 
 type ListSchemaAsyncIteratorMock = { [Symbol.asyncIterator](): AsyncIterableIterator<{ type: string, definition: string, name?:string }> }
 const getPubsubMock = (asyncIterable: ListSchemaAsyncIteratorMock
@@ -41,7 +36,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
             'data-user-created': false,
             'data-user-deleted': false,
         }
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), getPubsubMock() as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, getPubsubMock() as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const { schemasCreated, revisionsCreated } = await schemaDeployer.deployAvroSchemas(schemasToDeploy, {})
@@ -63,7 +58,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
             }
         }
         const pubsubMock = getPubsubMock(asyncIterable)
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'pubsub-test-event': true }
@@ -82,7 +77,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
             }
         }
         const pubsubMock = getPubsubMock(asyncIterable)
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'data-cmd-process-application-state': true }
@@ -101,7 +96,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
             }
         }
         const pubsubMock = getPubsubMock(asyncIterable)
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,
@@ -128,7 +123,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
         }
         const pubsubMock = getPubsubMock(asyncIterable)
         const schemaServiceClientMock = getSchemaServiceClientMock() as unknown as SchemaServiceClient
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           schemaServiceClientMock)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,
@@ -156,7 +151,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
             }
         }
         const pubsubMock = getPubsubMock(asyncIterable)
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           getSchemaServiceClientMock() as unknown as SchemaServiceClient)
 
         const schemasToDeploy = { 'data-cmd-process-application-state': true }
@@ -184,7 +179,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
         const revisionForDelete = {name: 'test'}
         revisions[MAX_REVISIONS_IN_GCLOUD - 1] = revisionForDelete
         const schemaServiceClientMock = getSchemaServiceClientMock(revisions) as unknown as SchemaServiceClient
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           schemaServiceClientMock)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,
@@ -219,7 +214,7 @@ describe('SchemaDeployer.deployAvroSchemas', () => {
         const pubsubMock = getPubsubMock(asyncIterable)
         const revisions = new Array(MAX_REVISIONS_IN_GCLOUD - 1)
         const schemaServiceClientMock = getSchemaServiceClientMock(revisions) as unknown as SchemaServiceClient
-        const schemaDeployer = new SchemaDeployer(getLoggerMock(), pubsubMock as unknown as PubSub,
+        const schemaDeployer = new SchemaDeployer(loggerMock, pubsubMock as unknown as PubSub,
           schemaServiceClientMock)
         const schemasToDeploy = {
             'data-cmd-process-application-state': true,

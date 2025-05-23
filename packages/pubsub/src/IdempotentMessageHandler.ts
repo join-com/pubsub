@@ -1,3 +1,4 @@
+import { IMessageHandler } from './IMessageHandler'
 import { JOIN_IDEMPOTENCY_KEY } from './Publisher'
 import { IIdempotencyStorage } from './RedisIdempotencyStorage'
 import { IMessageInfo, IParsedMessage } from './Subscriber'
@@ -11,7 +12,7 @@ type GetIdempotencyKeyFunction<T> = (msg: T, info: IMessageInfo) => string | und
  * After the message is processed, stores message in the idempotency storage
  * If no idempotency key is provided, message is processed without idempotency check
  */
-export abstract class IdempotentMessageHandler<T = unknown> {
+export abstract class IdempotentMessageHandler<T = unknown> implements IMessageHandler {
   /**
    *
    * @param subscriber subscriber to listen to

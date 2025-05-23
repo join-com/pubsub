@@ -1,7 +1,8 @@
+import { IMessageHandler } from './IMessageHandler'
 import { IMessageInfo, IParsedMessage } from './Subscriber'
 import { ISubscriber } from './SubscriberFactory'
 
-export abstract class MessageHandler<T = unknown> {
+export abstract class MessageHandler<T = unknown> implements IMessageHandler {
   protected constructor(private readonly subscriber: ISubscriber<T>) {}
 
   protected abstract handle(event: T , info: IMessageInfo): Promise<void>
